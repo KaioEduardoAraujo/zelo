@@ -101,7 +101,11 @@ Mais simples e sempre correto.
 - Templates: listar globais/próprios, duplicar e personalizar.
 - Painel inicial: 3 números + "Precisa de atenção" + recentes.
 
-## Fase 5 — Envio
+## Fase 5 — Envio ✅
+
+> Feito: hash canônico, token, envio atômico no banco, tela "Proposta criada" (WhatsApp, copiar
+> link, mensagem à vista), novo link e conferência do hash. Decisões D52–D60 no `CLAUDE.md`.
+> O link `/p/<token>` ainda **não existe** (é a Fase 6): até lá, abrir o link devolve 404.
 
 > Ao implementar: usar `conteudo.validade_dias` para calcular `validade_em` no envio (D41); ao
 > enviar a versão N+1, gerar token novo (D18); a nova versão só pode ser enviada se
@@ -121,6 +125,12 @@ Mais simples e sempre correto.
   token em texto puro.
 
 ## Fase 6 — Página pública `/p/[token]`
+
+> Ao implementar (Fase 5 deixou pronto): validar o formato com `tokenValido` antes de qualquer
+> consulta; buscar por `token_hash = hashToken(HASH_PEPPER, token)` com a service_role; mesma
+> resposta (404) para token inexistente, de proposta em rascunho ou substituído; mostrar o retrato
+> das partes (`snapshot`) e o hash; se `status = rascunho` (nova versão em edição) mostrar "o
+> prestador está atualizando esta proposta" (D50); o aceite grava `hash_documento` = hash da versão.
 
 - Server Component leve; valida token (HMAC → busca) com service_role; registra `aberta` e
   marca `visualizada` na primeira abertura.

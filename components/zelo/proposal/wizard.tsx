@@ -1,12 +1,21 @@
 "use client";
 
-import { ArrowLeft, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, CircleCheck, Eye, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -17,9 +26,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { FormField } from "@/components/zelo/form-field";
+import { FormMessage } from "@/components/zelo/form-message";
 import { PhoneInput } from "@/components/zelo/masked-inputs";
 import { ErrosProvider, useErros } from "@/components/zelo/proposal/erros-context";
 import { EscopoFields, ValoresFields, type MudarConteudo } from "@/components/zelo/proposal/fields";
+import { LinkEnvio } from "@/components/zelo/proposal/link-envio";
 import { ProposalDocument } from "@/components/zelo/proposal/proposal-document";
 import { SaveIndicator } from "@/components/zelo/proposal/save-indicator";
 import { Stepper } from "@/components/zelo/proposal/stepper";
@@ -34,7 +45,12 @@ import {
   type DraftForm,
   type Etapa,
 } from "@/lib/proposals/draft";
-import { salvarRascunho, type SalvarRascunhoEntrada } from "@/lib/proposals/actions";
+import {
+  enviarProposta,
+  salvarRascunho,
+  type SalvarRascunhoEntrada,
+} from "@/lib/proposals/actions";
+import type { ResumoEnvio } from "@/lib/proposals/envio";
 import { totalCentavos } from "@/lib/validation/proposta";
 
 type WizardProps = {
@@ -59,7 +75,13 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
   const [tentou, setTentou] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [previewAberto, setPreviewAberto] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const [errosServidor, setErrosServidor] = useState<Record<string, string>>({});
+  const [enviado, setEnviado] = useState<ResumoEnvio | null>(null);
   const tituloRef = useRef<HTMLHeadingElement>(null);
+  const tituloEnvioRef = useRef<HTMLHeadingElement>(null);
 
   const { state, schedule, flush, controller } = useAutosave<SalvarRascunhoEntrada>(salvarRascunho);
 
@@ -95,7 +117,10 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
     [mudar],
   );
 
-  const erros = useMemo(() => validarEtapa(etapa, form), [etapa, form]);
+  const erros = useMemo(
+    () => ({ ...validarEtapa(etapa, form), ...(etapa === 4 ? errosServidor : {}) }),
+    [etapa, form, errosServidor],
+  );
   const documento = useMemo(() => normalizarConteudo(form.conteudo), [form.conteudo]);
 
   /* Foco no título da etapa ao trocar (leitores de tela e teclado acompanham). */
@@ -107,6 +132,10 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
     }
     tituloRef.current?.focus();
   }, [etapa]);
+
+  useEffect(() => {
+    if (enviado) tituloEnvioRef.current?.focus();
+  }, [enviado]);
 
   /* Avisa ao sair com alterações ainda não salvas e salva ao esconder a aba. */
   useEffect(() => {
@@ -138,7 +167,19 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
     setTimeout(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 60);
   };
 
+  // Duplo clique em "Continuar" não pode rodar a validação e o salvamento duas vezes.
+  const avancandoRef = useRef(false);
   const avancar = async () => {
+    if (avancandoRef.current) return;
+    avancandoRef.current = true;
+    try {
+      await avancarEtapa();
+    } finally {
+      avancandoRef.current = false;
+    }
+  };
+
+  const avancarEtapa = async () => {
     if (etapa === 2) {
       // Linhas de exclusão em branco não bloqueiam: somem sozinhas antes de validar.
       mudarConteudo((c) => ({ ...c, exclusoes: c.exclusoes.filter((e) => e.trim() !== "") }));
@@ -172,6 +213,53 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
     router.push(`/propostas/${propostaId}`);
   };
 
+  /** Etapa 4, botão principal: valida e pede a confirmação (depois de enviada a versão trava). */
+  const pedirEnvio = () => {
+    setTentou(true);
+    if (Object.keys(validarTudo(formRef.current)).length > 0) return;
+    setErroEnvio(null);
+    setConfirmando(true);
+  };
+
+  const enviar = async () => {
+    setEnviando(true);
+    setErroEnvio(null);
+    // O servidor relê o rascunho do banco: garante que o que está na tela já foi salvo.
+    const salvou = await flush();
+    if (!salvou) {
+      setEnviando(false);
+      setErroEnvio(
+        "Não conseguimos salvar o rascunho agora. Seus dados continuam aqui, tente de novo.",
+      );
+      return;
+    }
+    let r: Awaited<ReturnType<typeof enviarProposta>>;
+    try {
+      r = await enviarProposta(propostaId);
+    } catch {
+      // Sem conexão: o botão não pode ficar preso em "Enviando…".
+      setEnviando(false);
+      setErroEnvio("Não conseguimos enviar agora. Seus dados continuam aqui, tente de novo.");
+      return;
+    }
+    setEnviando(false);
+    if (r.ok) {
+      setConfirmando(false);
+      setEnviado(r.resumo);
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    if (r.erros) {
+      // O servidor achou algo que a tela não achou: mostra na etapa de revisão.
+      setConfirmando(false);
+      setErrosServidor(r.erros);
+      setTentou(true);
+      toast.error(r.message);
+      return;
+    }
+    setErroEnvio(r.message);
+  };
+
   const preview = (
     <ProposalDocument
       titulo={form.titulo}
@@ -183,6 +271,29 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
   );
 
   const ultima = etapa === 4;
+
+  // Depois de enviada, a tela vira "Proposta criada". O link só existe neste estado.
+  if (enviado) {
+    return (
+      <div className="flex max-w-[var(--container-doc)] flex-col gap-6">
+        <div className="flex items-start gap-3">
+          <CircleCheck className="mt-1.5 size-7 shrink-0 text-teal-600" aria-hidden="true" />
+          <h1 ref={tituloEnvioRef} tabIndex={-1} className="text-h1 text-navy-950 outline-none">
+            Proposta criada
+          </h1>
+        </div>
+        <LinkEnvio resumo={enviado} />
+        <div className="flex flex-wrap gap-3">
+          <Button asChild variant="secondary">
+            <Link href={`/propostas/${propostaId}`}>Ver proposta</Link>
+          </Button>
+          <Button asChild variant="ghost">
+            <Link href="/propostas">Voltar para propostas</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrosProvider erros={erros} mostrarTodos={tentou}>
@@ -206,7 +317,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
-              void (ultima ? concluir() : avancar());
+              void (ultima ? pedirEnvio() : avancar());
             }}
             className="min-w-0"
           >
@@ -234,7 +345,14 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
             {etapa === 2 && <EscopoFields conteudo={form.conteudo} mudar={mudarConteudo} />}
             {etapa === 3 && <ValoresFields conteudo={form.conteudo} mudar={mudarConteudo} />}
             {etapa === 4 && (
-              <EtapaRevisar form={form} erros={erros} preview={preview} onIr={irPara} />
+              <EtapaRevisar
+                form={form}
+                erros={erros}
+                preview={preview}
+                onIr={irPara}
+                onSalvarSair={() => void concluir()}
+                salvando={finalizando}
+              />
             )}
 
             <div className="sticky bottom-0 z-20 -mx-4 mt-8 flex gap-3 border-t border-line bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:-mx-8 md:px-8 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:pb-0">
@@ -250,10 +368,10 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
               )}
               <Button
                 type="submit"
-                disabled={finalizando}
+                disabled={finalizando || enviando}
                 className="flex-[2] sm:min-w-44 sm:flex-none"
               >
-                {ultima ? (finalizando ? "Salvando…" : "Concluir rascunho") : "Continuar"}
+                {ultima ? "Enviar proposta" : "Continuar"}
               </Button>
             </div>
           </form>
@@ -282,6 +400,33 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
           <SheetBody>{preview}</SheetBody>
         </SheetContent>
       </Sheet>
+      <Dialog
+        open={confirmando}
+        onOpenChange={(aberto) => {
+          if (!enviando) setConfirmando(aberto);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar esta proposta?</DialogTitle>
+            <DialogDescription>
+              Depois de enviada, esta versão não pode mais ser editada. Para mudar algo, você cria
+              uma nova versão, e a anterior continua guardada com o seu hash.
+            </DialogDescription>
+          </DialogHeader>
+          {erroEnvio && <FormMessage tone="error">{erroEnvio}</FormMessage>}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary" disabled={enviando}>
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button onClick={() => void enviar()} disabled={enviando}>
+              {enviando ? "Enviando…" : "Enviar proposta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ErrosProvider>
   );
 }
@@ -365,11 +510,15 @@ function EtapaRevisar({
   erros,
   preview,
   onIr,
+  onSalvarSair,
+  salvando,
 }: {
   form: DraftForm;
   erros: Record<string, string>;
   preview: React.ReactNode;
   onIr: (etapa: Etapa) => void;
+  onSalvarSair: () => void;
+  salvando: boolean;
 }) {
   const problemas = Object.entries(erros);
 
@@ -404,9 +553,20 @@ function EtapaRevisar({
           </ul>
         </section>
       ) : (
-        <p className="text-support text-slate-600">
-          Tudo certo. Confira o documento abaixo; ele fica salvo como rascunho.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-support text-slate-600">
+            Tudo certo. Confira o documento abaixo. Ao enviar, esta versão é travada com o seu hash.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onSalvarSair}
+            disabled={salvando}
+          >
+            {salvando ? "Salvando…" : "Salvar rascunho e sair"}
+          </Button>
+        </div>
       )}
 
       <dl className="divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface">

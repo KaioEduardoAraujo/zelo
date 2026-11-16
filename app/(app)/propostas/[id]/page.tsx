@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { ConfirmDialog } from "@/components/zelo/confirm-dialog";
 import { CopyButton } from "@/components/zelo/copy-button";
 import { FormMessage } from "@/components/zelo/form-message";
 import { PageHeader } from "@/components/zelo/page-header";
+import { GerarNovoLink } from "@/components/zelo/proposal/gerar-novo-link";
 import { ProposalDocument } from "@/components/zelo/proposal/proposal-document";
 import { StatusBadge } from "@/components/zelo/status-badge";
 import { requirePrestador } from "@/lib/auth/dal";
@@ -97,9 +99,16 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
 
           <div className="max-w-[var(--container-doc)]">
             <ProposalDocument
-              titulo={proposta.titulo}
-              prestador={{ nome: profile.nome, empresa: profile.empresa_nome }}
-              clienteNome={proposta.clienteNome}
+              titulo={versao.snapshot?.titulo || proposta.titulo}
+              prestador={
+                versao.snapshot
+                  ? {
+                      nome: versao.snapshot.prestador.nome,
+                      empresa: versao.snapshot.prestador.empresa,
+                    }
+                  : { nome: profile.nome, empresa: profile.empresa_nome }
+              }
+              clienteNome={versao.snapshot?.cliente.nome ?? proposta.clienteNome}
               conteudo={versao.conteudo}
               validade={
                 ehAtual && !rascunho && proposta.validadeEm
@@ -117,6 +126,9 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
               {rascunho && (
                 <>
                   <Button asChild>
+                    <Link href={`/propostas/${proposta.id}/editar?etapa=4`}>Revisar e enviar</Link>
+                  </Button>
+                  <Button asChild variant="secondary">
                     <Link href={`/propostas/${proposta.id}/editar?etapa=2`}>
                       Continuar editando
                     </Link>
@@ -137,6 +149,23 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
                     </p>
                   )}
                 </>
+              )}
+
+              {(proposta.status === "enviada" || proposta.status === "visualizada") && (
+                <div className="flex flex-col gap-2">
+                  <GerarNovoLink propostaId={proposta.id} />
+                  <p className="text-support text-slate-600">
+                    O link só aparece quando é criado. Perdeu? Gere outro: o anterior deixa de
+                    funcionar.
+                  </p>
+                </div>
+              )}
+
+              {proposta.status === "expirada" && (
+                <p className="text-support text-slate-600">
+                  Esta proposta venceu e o link não aceita mais respostas. Crie uma nova versão para
+                  enviar de novo.
+                </p>
               )}
 
               {!rascunho && !aceita && (
@@ -179,6 +208,20 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
                 <p className="mt-2 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2.5 font-mono text-xs leading-5 break-all text-navy-800">
                   {versao.hashSha256}
                 </p>
+                {versao.hashConfere ? (
+                  <p className="mt-2 flex items-start gap-1.5 text-support text-success">
+                    <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    Conteúdo conferido: o hash recalculado agora é igual ao gravado no envio.
+                  </p>
+                ) : (
+                  <p
+                    role="alert"
+                    className="mt-2 flex items-start gap-1.5 text-support text-danger"
+                  >
+                    <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />O conteúdo
+                    guardado não bate com o hash gravado no envio.
+                  </p>
+                )}
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <p className="text-support text-slate-600">
                     Enviada em {versao.enviadaEm ? formatDateTime(versao.enviadaEm) : "—"}

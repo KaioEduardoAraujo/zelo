@@ -57,7 +57,7 @@ test.describe("assistente de proposta", () => {
     await expect(page.getByRole("heading", { name: "Revisar", level: 2 })).toBeVisible();
     await expect(page.getByText("Pintura da laje").first()).toBeVisible();
     await expect(page.getByText("Falta preencher")).toHaveCount(0);
-    await page.getByRole("button", { name: "Concluir rascunho" }).click();
+    await page.getByRole("button", { name: "Salvar rascunho e sair" }).click();
     await expect(page).toHaveURL(new RegExp(`/propostas/${UUID}$`));
     await expect(page.getByText("Pintura da laje").first()).toBeVisible();
 

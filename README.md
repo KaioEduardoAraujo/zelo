@@ -41,8 +41,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 2 | Autenticação, papéis, recuperação de senha, conta suspensa | ✅ Concluída |
 | 3 | Design system e shell do app (desktop e celular) | ✅ Concluída |
 | 4 | Propostas: listagem, assistente de criação, rascunho, versões | ✅ Concluída |
-| 5 | Envio: hash da versão, token do link, WhatsApp | ⏳ Próxima |
-| 6 | Página pública do cliente com aceite por código (OTP) | Planejada |
+| 5 | Envio: hash da versão, token do link, WhatsApp | ✅ Concluída |
+| 6 | Página pública do cliente com aceite por código (OTP) | ⏳ Próxima |
 | 7 | PDF comprovante, e-mail e verificação de integridade | Planejada |
 | 8 | Aditivo e aceite de entrega (com fotos) | Planejada |
 | 9 | Painel do administrador | Planejada |
@@ -73,6 +73,9 @@ só no código da aplicação:
   a versão atual, dentro da validade e com o hash igual ao do documento.
 - **RLS em todas as tabelas:** um prestador não enxerga nada de outro; o visitante sem login não
   acessa nenhuma tabela; o administrador vê só a lista de prestadores e as contagens.
+- **Envio atômico e selado:** ao enviar, uma função do banco trava a versão, grava o hash SHA-256 do
+  documento (conteúdo + retrato das partes), gera o link e registra o evento, tudo de uma vez. O
+  servidor revalida tudo e o detalhe da proposta recalcula o hash para provar que nada mudou.
 - **Cliente sem conta acessa só pelo servidor:** o link carrega um token aleatório de 32 bytes, e o
   banco guarda apenas o hash dele.
 - **Código por e-mail (OTP):** 6 dígitos, guardado como HMAC-SHA256, expira em 10 minutos, com no

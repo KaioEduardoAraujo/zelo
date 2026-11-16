@@ -77,7 +77,8 @@ Coluna `role` em `profiles`: `admin` | `prestador`.
 Status gravados: `rascunho`, `enviada`, `visualizada`, `aceita`, `recusada`, `ajuste_solicitado`.
 `expirada` é **calculada na leitura** pela view `propostas_situacao` (coluna `status_efetivo`).
 Extras: `aceites.codigo_comprovante` (`ZL-XXXX-XXXX`, gerado pelo banco), `propostas.atualizado_em`,
-função `admin_resumo_prestadores()` (contagens para o admin), buckets privados `comprovantes` e
+funções `admin_resumo_prestadores()` (contagens para o admin), `resumo_painel()`, `enviar_versao()` e
+`regenerar_link()` (invólucros públicos; a lógica está em `private`), buckets privados `comprovantes` e
 `entregas` (caminho `<prestador_id>/...`).
 
 **Conteúdo da versão** (`lib/validation/proposta.ts`, valores em **centavos**):
@@ -170,6 +171,15 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D49 | Página fora do intervalo (PGRST103) vira "última página" em vez de erro; `loading.tsx` só na listagem (route group `(lista)`), para a proposta alheia responder **HTTP 404** de verdade | Entrada hostil/antiga não pode derrubar a tela; 404 sem streaming prévio |
 | D50 | "Criar nova versão" copia a versão atual como rascunho; o trigger devolve a proposta a `rascunho`. Enquanto isso o banco **recusa aceite** (exige enviada/visualizada): a página pública (Fase 6) precisa mostrar "o prestador está atualizando esta proposta" | Versão enviada é imutável; link antigo não pode aceitar uma versão substituída |
 | D51 | Unidade do item é um **seletor** (`lib/unidades.ts`): un, vb, m, m², m³, kg, h, dia, mês, dúzia, dezena, centena, milhar; "Outra…" abre texto livre; unidade antiga fora da lista continua aparecendo | O `<datalist>` só sugeria o que combinava com o texto já digitado (com "un" no campo, nada mais aparecia) |
+| D52 | O hash cobre o **documento enviado** = conteúdo + `titulo` + retrato das partes (`prestador`, `cliente`) + `proposta_id` + `versao`; serialização canônica (chaves ordenadas, sem espaços) em `lib/crypto/canonical.ts`. O banco confere `proposta_id` e `versao` | O retrato mantém a prova mesmo se o prestador mudar de nome depois; amarrar ao registro impede dois documentos com o mesmo hash. Teste prova que o hash sobrevive ao jsonb do Postgres (acentos, emoji, 22,5) |
+| D53 | Envio **atômico** em `private.enviar_versao` (SECURITY DEFINER) com invólucro público SECURITY INVOKER `public.enviar_versao`; idem `regenerar_link`. Confere dono, conta ativa, rascunho, formato dos hashes, validade 1–90 e identidade do documento; trava a versão, grava hash, troca o token, define `validade_em` (= agora + `validade_dias`) e registra o evento `enviada`/`link_regenerado`. Proposta alheia e inexistente dão a mesma resposta | Tudo ou nada; o prestador não grava auditoria direto (só o servidor), então a função grava em nome dele depois de conferir quem chama. Lógica em `private` mantém os advisors limpos |
+| D54 | Token do link: 32 bytes, base64url (43 caracteres); o banco guarda só o **HMAC-SHA256** com `HASH_PEPPER` (`lib/crypto/token.ts`). O token só existe na resposta da ação e no **estado do navegador** (nunca na URL nem em log); fechar o diálogo o apaga. Enviar a versão N+1 troca o token | Quem vazar o banco não reconstrói o link; link novo invalida o antigo (D18) |
+| D55 | `enviarProposta` **relê o rascunho do banco** e valida tudo de novo (`prepararDocumento` → `validarTudo` + schema estrito); nada do que está na tela do navegador é usado. O assistente salva (flush) antes de chamar | O servidor nunca confia no cliente |
+| D56 | **Nunca** chamar `revalidatePath` em `enviarProposta`: o Next re-renderiza a página atual (`/editar`), que redireciona ao detalhe e desmonta a tela antes de mostrar o link (que só existe naquela resposta). Bug pego pelo e2e | Páginas dinâmicas já buscam dados novos a cada visita |
+| D57 | WhatsApp: `https://wa.me/55<DDD+número>?text=…` (`lib/proposals/envio.ts`); sem telefone válido abre `wa.me/?text=` (a pessoa escolhe o contato); link com `rel="noopener noreferrer"`. A etapa 4 vira "Enviar proposta" (com confirmação) e "Salvar rascunho e sair" | DESIGN.md 7.2.5; a versão trava ao enviar |
+| D58 | O detalhe **recalcula o hash** de cada versão enviada a partir do que está guardado e mostra "Conteúdo conferido" (ou um alerta se não bater) | Confiança visível (DESIGN.md 1.5); base do `/verificar` (Fase 7) |
+| D59 | `logging.serverFunctions: false` no `next.config.ts` | O `next dev` imprimia os argumentos de cada Server Action (e-mails e nomes) no terminal; regra 9 |
+| D60 | `x-forwarded-for` só é confiável atrás da Vercel (ela o define); fora dela um cliente pode forjar o IP gravado na auditoria. IP só é gravado se for um IP válido (`net.isIP`) | Limitação conhecida, a registrar no README (Fase 10) |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -183,11 +193,15 @@ components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
 components/zelo/          componentes da marca: Logo, StatusBadge, AcceptanceStamp, ProposalCard, AuditTimeline,
                           EmptyState, ConfirmDialog, PageHeader, FormField, masked-inputs (CPF, telefone, dinheiro)
 components/zelo/shell/    AppShell + nav.ts (itens, item ativo, título da página, modo foco)
-components/zelo/proposal/ assistente (wizard, stepper, fields, erros-context, save-indicator) e ProposalDocument
+components/zelo/proposal/ assistente (wizard, stepper, fields, erros-context, save-indicator), ProposalDocument,
+                          LinkEnvio ("Proposta criada") e GerarNovoLink
 lib/proposals/            draft.ts (normalizar/validar por etapa), attention.ts, search.ts, queries.ts, actions.ts
 lib/templates/actions.ts  duplicar, salvar e excluir modelos
 lib/autosave.ts           controlador do autosave (sem React); hook em lib/hooks/use-autosave.ts
 lib/nichos.ts             rótulos dos ramos
+lib/crypto/               canonical.ts (JSON canônico), hash.ts (SHA-256, HMAC, comparação em tempo constante), token.ts (token do link)
+lib/proposals/envio.ts    prepararDocumento (documento selado), mensagem e link do WhatsApp
+lib/unidades.ts           unidades de medida dos itens
 app/not-found.tsx, app/error.tsx   404 e erro em português
 app/dev/componentes/      vitrine do design system (só em desenvolvimento)
 lib/status.ts             rótulos/tons dos status e textos dos eventos de auditoria

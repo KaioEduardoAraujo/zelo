@@ -458,7 +458,36 @@ export type Database = {
           total_propostas: number;
         }[];
       };
+      enviar_versao: {
+        Args: {
+          p_documento: Json;
+          p_hash: string;
+          p_ip?: unknown;
+          p_proposta_id: string;
+          p_token_hash: string;
+          p_user_agent?: string;
+        };
+        Returns: {
+          r_enviada_em: string;
+          r_numero: number;
+          r_validade_em: string;
+          r_versao_id: string;
+        }[];
+      };
       gerar_codigo_comprovante: { Args: Record<PropertyKey, never>; Returns: string };
+      regenerar_link: {
+        Args: {
+          p_ip?: unknown;
+          p_proposta_id: string;
+          p_token_hash: string;
+          p_user_agent?: string;
+        };
+        Returns: {
+          r_numero: number;
+          r_validade_em: string;
+          r_versao_id: string;
+        }[];
+      };
       resumo_painel: {
         Args: Record<PropertyKey, never>;
         Returns: {

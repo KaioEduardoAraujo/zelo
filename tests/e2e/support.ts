@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
 
+import { hashDocumento } from "@/lib/crypto/hash";
 import type { Database } from "@/lib/supabase/database.types";
 
 /* Apoio dos testes e2e: só roda contra o Supabase LOCAL. */
@@ -149,7 +150,7 @@ export async function semearProposta(
   if (e2) throw e2;
   if (status === "rascunho") return { id: p.id, versaoId: v.id, hash: null };
 
-  const hash = hashAleatorio();
+  const hash = hashDocumento(conteudo); // hash REAL do conteúdo: a página de detalhe o confere
   const { error: e3 } = await service
     .from("proposta_versoes")
     .update({ enviada_em: new Date().toISOString(), hash_sha256: hash })
