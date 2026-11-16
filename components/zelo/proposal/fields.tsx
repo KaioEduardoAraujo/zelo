@@ -5,12 +5,14 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/zelo/form-field";
 import { MoneyInput } from "@/components/zelo/masked-inputs";
 import { useErros } from "@/components/zelo/proposal/erros-context";
 import { formatCentavos } from "@/lib/format";
 import { formatDecimal, onlyDigits, parseDecimal } from "@/lib/masks";
+import { UNIDADE_OUTRA, UNIDADES } from "@/lib/unidades";
 import { totalItemCentavos, type ConteudoRascunho } from "@/lib/validation/proposta";
 
 /** Altera o conteúdo recebendo o estado anterior (evita perder edições rápidas seguidas). */
@@ -18,7 +20,6 @@ export type MudarConteudo = (fn: (c: ConteudoRascunho) => ConteudoRascunho) => v
 
 type CamposProps = { conteudo: ConteudoRascunho; mudar: MudarConteudo };
 
-const UNIDADES = ["un", "m²", "m", "m³", "h", "dia", "mês", "kg", "vb"];
 const MAX_ITENS = 100;
 const MAX_EXCLUSOES = 50;
 
@@ -62,6 +63,75 @@ function QuantityInput({
         props.onBlur?.(e);
       }}
     />
+  );
+}
+
+/**
+ * Unidade do item: seletor com a lista de unidades. "Outra…" abre um campo de texto para quem
+ * precisa de algo fora da lista, e uma unidade antiga já salva (fora da lista) continua aparecendo.
+ * (Antes era um <datalist>, que só sugere o que combina com o texto já digitado: com "un" no
+ * campo, nenhuma outra opção aparecia.)
+ */
+function UnitSelect({
+  value,
+  onValue,
+  ...props
+}: { value: string; onValue: (v: string) => void } & Omit<
+  React.ComponentProps<"select">,
+  "value" | "onChange" | "defaultValue"
+>) {
+  const [livre, setLivre] = useState(false);
+  const naLista = UNIDADES.some((u) => u.valor === value);
+
+  if (livre) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          id={props.id}
+          aria-invalid={props["aria-invalid"]}
+          aria-describedby={props["aria-describedby"]}
+          maxLength={10}
+          placeholder="ex.: visita"
+          value={value}
+          onChange={(e) => onValue(e.target.value)}
+          onBlur={props.onBlur as React.FocusEventHandler<HTMLInputElement> | undefined}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setLivre(false);
+            onValue("un");
+          }}
+        >
+          Lista
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <NativeSelect
+      {...props}
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === UNIDADE_OUTRA) {
+          setLivre(true);
+          onValue("");
+        } else {
+          onValue(e.target.value);
+        }
+      }}
+    >
+      {!naLista && <option value={value}>{value || "Escolha…"}</option>}
+      {UNIDADES.map((u) => (
+        <option key={u.valor} value={u.valor}>
+          {u.rotulo}
+        </option>
+      ))}
+      <option value={UNIDADE_OUTRA}>Outra…</option>
+    </NativeSelect>
   );
 }
 
@@ -109,12 +179,6 @@ export function EscopoFields({ conteudo, mudar }: CamposProps) {
           </p>
         )}
 
-        <datalist id="unidades">
-          {UNIDADES.map((u) => (
-            <option key={u} value={u} />
-          ))}
-        </datalist>
-
         <ul className="flex flex-col gap-3">
           {itens.map((item, i) => (
             <li
@@ -148,7 +212,7 @@ export function EscopoFields({ conteudo, mudar }: CamposProps) {
                     />
                   )}
                 </FormField>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3">
                   <FormField
                     id={`item-${i}-quantidade`}
                     label="Quantidade"
@@ -169,12 +233,10 @@ export function EscopoFields({ conteudo, mudar }: CamposProps) {
                     error={erro(`itens.${i}.unidade`)}
                   >
                     {(a11y) => (
-                      <Input
+                      <UnitSelect
                         {...a11y}
-                        list="unidades"
-                        maxLength={10}
                         value={item.unidade}
-                        onChange={(e) => alterarItem(i, { unidade: e.target.value })}
+                        onValue={(unidade) => alterarItem(i, { unidade })}
                         onBlur={() => tocar(`itens.${i}.unidade`)}
                       />
                     )}

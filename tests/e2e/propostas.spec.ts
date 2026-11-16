@@ -38,7 +38,7 @@ test.describe("assistente de proposta", () => {
     await page.getByRole("button", { name: "Adicionar item" }).click();
     await page.getByLabel("Descrição").last().fill("Pintura da laje");
     await page.getByLabel("Quantidade").last().fill("10");
-    await page.getByLabel("Unidade").last().fill("m²");
+    await page.getByLabel("Unidade").last().selectOption("m²");
 
     // Autosave: salva sozinho e sobrevive a um recarregamento
     await expect(salvo(page)).toBeVisible({ timeout: 20_000 });
@@ -500,5 +500,63 @@ test.describe("templates", () => {
       .single();
     await page.goto(`/templates/${global!.id}/editar`);
     await expect(page).toHaveURL(/\/templates$/);
+  });
+});
+
+test.describe("unidade do item", () => {
+  test("seletor mostra todas as unidades (dúzia, dezena, centena, milhar), grava a escolhida e aceita outra", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const conta = await criarConta();
+    const { id } = await semearProposta(conta.id);
+    await login(page, conta);
+    await page.goto(`/propostas/${id}/editar?etapa=2`);
+
+    const unidadeNoBanco = async () => {
+      const { data } = await service
+        .from("proposta_versoes")
+        .select("conteudo")
+        .eq("proposta_id", id)
+        .single();
+      return (data!.conteudo as { itens: { unidade: string }[] }).itens[0].unidade;
+    };
+
+    // O item já vem com "un" selecionada e, mesmo assim, a lista completa aparece
+    const unidade = page.getByLabel("Unidade");
+    await expect(unidade).toHaveValue("un");
+    expect(await unidade.locator("option").allTextContents()).toEqual(
+      expect.arrayContaining([
+        "un",
+        "m²",
+        "kg",
+        "dúzia (12)",
+        "dezena (10)",
+        "centena (100)",
+        "milhar (1.000)",
+        "Outra…",
+      ]),
+    );
+
+    for (const valor of ["dúzia", "dezena", "centena", "milhar"]) {
+      await unidade.selectOption(valor);
+      await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe(valor);
+    }
+
+    // A pré-visualização/documento usa a unidade escolhida
+    await page.goto(`/propostas/${id}`);
+    await expect(page.getByText(/1 milhar ×/)).toBeVisible();
+
+    // "Outra…": texto livre, que também é gravado e continua aparecendo depois de recarregar
+    await page.goto(`/propostas/${id}/editar?etapa=2`);
+    await page.getByLabel("Unidade").selectOption("Outra…");
+    await page.getByLabel("Unidade").fill("visita");
+    await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe("visita");
+    await page.reload();
+    await expect(page.getByLabel("Unidade")).toHaveValue("visita");
+
+    // E dá para voltar para a lista
+    await page.getByLabel("Unidade").selectOption("kg");
+    await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe("kg");
   });
 });

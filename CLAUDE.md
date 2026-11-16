@@ -169,6 +169,7 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D48 | Modelos do Zelo são só leitura; "Duplicar e personalizar" cria uma cópia do prestador (`dono_id`). Modelo salvo é sempre conteúdo **completo** (formato estrito) | Quem usa um modelo começa de algo pronto |
 | D49 | Página fora do intervalo (PGRST103) vira "última página" em vez de erro; `loading.tsx` só na listagem (route group `(lista)`), para a proposta alheia responder **HTTP 404** de verdade | Entrada hostil/antiga não pode derrubar a tela; 404 sem streaming prévio |
 | D50 | "Criar nova versão" copia a versão atual como rascunho; o trigger devolve a proposta a `rascunho`. Enquanto isso o banco **recusa aceite** (exige enviada/visualizada): a página pública (Fase 6) precisa mostrar "o prestador está atualizando esta proposta" | Versão enviada é imutável; link antigo não pode aceitar uma versão substituída |
+| D51 | Unidade do item é um **seletor** (`lib/unidades.ts`): un, vb, m, m², m³, kg, h, dia, mês, dúzia, dezena, centena, milhar; "Outra…" abre texto livre; unidade antiga fora da lista continua aparecendo | O `<datalist>` só sugeria o que combinava com o texto já digitado (com "un" no campo, nada mais aparecia) |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
