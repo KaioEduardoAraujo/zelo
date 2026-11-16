@@ -72,7 +72,9 @@ Mais simples e sempre correto.
 - Conta suspensa: bloqueio no DAL + RLS (`is_active_prestador()`), com tela explicando.
 - Recuperação de senha pelo fluxo do Supabase Auth (`resetPasswordForEmail` + callback com PKCE).
 
-## Fase 3 — Design system e shell
+## Fase 3 — Design system e shell ✅
+
+> Feito. Toast, diálogo e bottom sheet prontos; páginas da navegação são provisórias até a Fase 4.
 
 - Componentes shadcn necessários (input, label, form, dialog, sheet, sonner/toast, skeleton,
   table, tabs) com o tema da Zelo.

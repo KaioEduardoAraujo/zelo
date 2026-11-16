@@ -36,3 +36,22 @@ export function maskCpf(cpf: string): string {
   if (digits.length !== 11) return "***.***.***-**";
   return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
 }
+
+const relative = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 24 * 3600],
+  ["month", 30 * 24 * 3600],
+  ["week", 7 * 24 * 3600],
+  ["day", 24 * 3600],
+  ["hour", 3600],
+  ["minute", 60],
+];
+
+/** "agora", "há 5 minutos", "ontem", "há 2 semanas", "em 3 dias". */
+export function formatRelative(date: Date | string, now: Date = new Date()): string {
+  const seconds = Math.round((new Date(date).getTime() - now.getTime()) / 1000);
+  for (const [unit, size] of UNITS) {
+    if (Math.abs(seconds) >= size) return relative.format(Math.trunc(seconds / size), unit);
+  }
+  return "agora";
+}

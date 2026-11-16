@@ -78,3 +78,15 @@ export async function ultimoEmailPara(email: string): Promise<{ subject: string;
   };
   return { subject: msg.Subject, html: msg.HTML };
 }
+
+/** Sair da conta: no desktop pela barra lateral; no celular pela tela Conta. */
+export async function sair(page: Page) {
+  const lateral = page.getByRole("complementary").getByRole("button", { name: "Sair" });
+  if (await lateral.isVisible()) {
+    await lateral.click();
+  } else {
+    await page.goto("/conta");
+    await page.getByRole("button", { name: "Sair da conta" }).click();
+  }
+  await expect(page).toHaveURL(/\/login$/);
+}

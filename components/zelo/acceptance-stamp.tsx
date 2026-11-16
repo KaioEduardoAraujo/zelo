@@ -5,30 +5,38 @@ type AcceptanceStampProps = {
   acceptedAt: string;
   /** Código curto do comprovante, ex.: ZL-4K7Q-92MD. */
   code: string;
-  /** Desenha o check com a animação de marca (~400ms). Use só na confirmação. */
+  /** Desenha o check com a animação de marca (~400ms). Use só na confirmação do aceite. */
   animate?: boolean;
+  /** md: dentro de documentos e listas · lg: tela de sucesso do cliente. */
+  size?: "md" | "lg";
   className?: string;
 };
 
 /**
  * Selo de aceite: anel + check, data e código do comprovante.
- * É o elemento mais "da marca" do produto (DESIGN.md 5). Versão inicial da Fase 0;
- * a Fase 3 completa as variações.
+ * É o elemento mais "da marca" do produto (DESIGN.md 5).
  */
 export function AcceptanceStamp({
   acceptedAt,
   code,
   animate = false,
+  size = "md",
   className,
 }: AcceptanceStampProps) {
+  const lg = size === "lg";
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 rounded-[var(--radius-card)] border border-teal-600/25 bg-teal-50 py-2.5 pr-4 pl-2.5",
+        "inline-flex items-center rounded-[var(--radius-card)] border border-teal-600/25 bg-teal-50",
+        lg ? "gap-4 py-4 pr-6 pl-4" : "gap-3 py-2.5 pr-4 pl-2.5",
         className,
       )}
     >
-      <svg viewBox="0 0 48 48" className="size-11 shrink-0" aria-hidden="true">
+      <svg
+        viewBox="0 0 48 48"
+        className={cn("shrink-0", lg ? "size-16" : "size-11")}
+        aria-hidden="true"
+      >
         <circle
           cx="24"
           cy="24"
@@ -58,9 +66,21 @@ export function AcceptanceStamp({
         />
       </svg>
       <div className="min-w-0">
-        <p className="text-support font-bold text-teal-600">Aceite registrado</p>
-        <p className="font-mono text-xs leading-5 text-navy-800">
-          {acceptedAt} <span className="text-slate-600">{code}</span>
+        <p className={cn("font-bold text-teal-600", lg ? "text-h3" : "text-support")}>
+          Aceite registrado
+        </p>
+        <p
+          className={cn(
+            "font-mono text-navy-800",
+            lg ? "mt-0.5 text-sm leading-6" : "text-xs leading-5",
+          )}
+        >
+          {acceptedAt}
+        </p>
+        <p
+          className={cn("font-mono text-slate-600", lg ? "text-sm leading-6" : "text-xs leading-5")}
+        >
+          Comprovante {code}
         </p>
       </div>
     </div>

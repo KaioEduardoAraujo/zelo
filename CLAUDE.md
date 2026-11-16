@@ -152,6 +152,12 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D31 | Playwright adiantado da Fase 10: e2e com o Chrome do sistema (local) e Chromium (CI), desktop + 375px | Prova os fluxos de autenticação de ponta a ponta |
 | D33 | Funções auxiliares do RLS (`is_admin`, `is_active_prestador`, `eh_dono_da_proposta`, `eh_usuario_final`) no schema **`private`** (não exposto pela API); `admin_resumo_prestadores` fica em `public` de propósito (aviso do advisor aceito) | Advisors da nuvem: SECURITY DEFINER não deve ser chamável por /rpc sem necessidade |
 | D34 | Projeto na nuvem: `ovahgvavuyuvcxfztiub` (linkado pela CLI). Migrations sobem com `npx supabase db push --remote` (sempre `--dry-run` antes) | Mesmo fluxo versionado do local |
+| D35 | Shell do prestador em `components/zelo/shell/` (sidebar clara 240px ≥1024px; mobile: barra superior + nav inferior com "Nova proposta" central). No mobile o H1 da página fica `sr-only` (o título está na barra superior), exceto no Início | DESIGN.md 7.1, sem título duplicado |
+| D36 | Componentes shadcn reescritos no padrão Zelo e em PT-BR (dialog, sheet, sonner, skeleton, table); `next-themes` removido | Sem modo escuro; tema não pode parecer o padrão |
+| D37 | Inputs com máscara enviam o valor limpo num `<input type="hidden">` (dígitos/centavos); o servidor revalida | Máscara é só apresentação |
+| D38 | `/dev/componentes`: vitrine do design system, `notFound()` em produção | Revisar componentes em 375/1280 sem expor em produção |
+| D39 | `devIndicators: false` no `next.config.ts` | O botão "N" do modo dev cobria o canto inferior esquerdo (Sair, Início) |
+| D40 | Playwright: porta 3000 (reaproveita o `npm run dev`), 2 workers, timeout de 60s/15s | Next 16 não permite dois `next dev` na mesma pasta; modo dev é lento em máquina carregada |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -162,7 +168,14 @@ Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`
 app/                      rotas: (auth)/ login, cadastro, esqueci-senha, redefinir-senha, conta-suspensa;
                           (app)/ área do prestador; (admin)/admin; auth/confirm (links de e-mail). Futuro: p/[token]/, verificar/
 components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
-components/zelo/          componentes da marca: Logo, AcceptanceStamp (Fase 3: StatusBadge, ProposalCard, AuditTimeline…)
+components/zelo/          componentes da marca: Logo, StatusBadge, AcceptanceStamp, ProposalCard, AuditTimeline,
+                          EmptyState, ConfirmDialog, PageHeader, FormField, masked-inputs (CPF, telefone, dinheiro)
+components/zelo/shell/    AppShell + nav.ts (itens, item ativo, título da página)
+app/dev/componentes/      vitrine do design system (só em desenvolvimento)
+lib/status.ts             rótulos/tons dos status e textos dos eventos de auditoria
+lib/masks.ts              máscaras de CPF, telefone e dinheiro (centavos)
+lib/validation/cpf.ts     dígitos verificadores do CPF
+lib/user-agent.ts         resumo do dispositivo para a trilha
 proxy.ts                  renova sessão + redirecionamento otimista (antigo middleware)
 lib/auth/                 routes.ts (rotas, safeNextPath), dal.ts (checagem no servidor), actions.ts (login, cadastro, senha)
 lib/validation/auth.ts    schemas Zod dos formulários de acesso
@@ -172,7 +185,7 @@ lib/env.ts                env públicas (Zod)
 lib/env.server.ts         segredos (server-only)
 lib/supabase/             client.ts (navegador), server.ts (usuário logado), service.ts (service_role, só servidor)
 lib/email/                interface de e-mail + provedores (Fase 6)
-lib/format.ts             moeda, data/hora (America/Sao_Paulo), máscara de CPF
+lib/format.ts             moeda (reais e centavos), data/hora (America/Sao_Paulo), data relativa, CPF mascarado
 styles/tokens.css         tokens da marca (@theme do Tailwind)
 supabase/migrations/      migrations versionadas: tipos, tabelas, índices, triggers, RLS, storage
 supabase/seed.sql         5 templates globais
@@ -197,7 +210,7 @@ npm run lint          # ESLint (com eslint-config-prettier)
 npm run typecheck     # next typegen + tsc --noEmit
 npm test              # testes unitários (Vitest, projeto "unit")
 npm run test:db       # testes de banco: RLS, imutabilidade, seeds (exige Supabase local)
-npm run test:e2e      # Playwright: fluxos no navegador (sobe `next dev` na porta 3100)
+npm run test:e2e      # Playwright: fluxos no navegador (reaproveita o `npm run dev` da porta 3000 ou sobe um)
 npm run check         # lint + typecheck + unit + db + e2e (rodar antes de cada commit de fase)
 npm run format        # Prettier (com ordenação de classes Tailwind)
 

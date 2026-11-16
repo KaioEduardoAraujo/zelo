@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
+import { EmptyState } from "@/components/zelo/empty-state";
 import { FormMessage } from "@/components/zelo/form-message";
+import { PageHeader } from "@/components/zelo/page-header";
 import { requirePrestador } from "@/lib/auth/dal";
 
 export const metadata: Metadata = { title: "Início" };
@@ -16,10 +18,17 @@ export default async function InicioPage(props: PageProps<"/inicio">) {
           Senha alterada. Use a nova senha no próximo acesso.
         </FormMessage>
       )}
-      <h1 className="text-h1 text-navy-950">Olá, {profile.nome.split(" ")[0]}</h1>
-      <p className="mt-2 text-slate-600">
-        Seu painel com propostas e aceites chega nas próximas fases.
-      </p>
+      <PageHeader
+        showTitleOnMobile
+        title={`Olá, ${profile.nome.split(" ")[0]}`}
+        description="Acompanhe o que seus clientes já aceitaram."
+      />
+      {/* Fase 4: números do mês, "Precisa de atenção" e propostas recentes. */}
+      <EmptyState
+        title="Nenhuma proposta por aqui ainda."
+        description="Crie a primeira em 2 minutos a partir de um modelo do seu ramo."
+        action={{ label: "Criar a primeira proposta", href: "/propostas/nova" }}
+      />
     </>
   );
 }

@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-import { criarConta, entrar, novaSenha, novoEmail, service, ultimoEmailPara } from "./support";
+import {
+  criarConta,
+  entrar,
+  novaSenha,
+  novoEmail,
+  sair,
+  service,
+  ultimoEmailPara,
+} from "./support";
 
 test.describe("proteção de rotas", () => {
   test("visitante é levado ao login e volta para onde queria depois de entrar", async ({
@@ -71,8 +79,7 @@ test.describe("cadastro, login e logout", () => {
       empresa_nome: "Souza Design",
     });
 
-    await page.getByRole("button", { name: "Sair" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await sair(page);
     await page.goto("/inicio");
     await expect(page).toHaveURL(/\/login/);
   });
@@ -143,7 +150,7 @@ test.describe("esqueci a senha", () => {
     await expect(page).toHaveURL(/\/inicio\?senha=redefinida/);
     await expect(page.getByText("Senha alterada.")).toBeVisible();
 
-    await page.getByRole("button", { name: "Sair" }).click();
+    await sair(page);
     await entrar(page, conta.email, nova);
     await expect(page).toHaveURL(/\/inicio/);
   });
