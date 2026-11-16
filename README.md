@@ -10,8 +10,7 @@ online. O cliente abre o link no celular, sem criar conta, e confirma com um có
 e-mail. O aceite fica registrado com **trilha de auditoria** e **hash SHA-256 do documento**, o que
 dá ao prestador uma prova do que foi combinado.
 
-> Projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas, construído só com planos
-> gratuitos (Supabase, Vercel e Resend).
+> Projeto acadêmico do curso de Análise e Desenvolvimento de Sistemas).
 
 ## Problemas que resolve
 
