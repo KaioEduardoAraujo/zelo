@@ -150,6 +150,8 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D29 | Parâmetro `next` validado por `safeNextPath` (só caminhos internos) | Evita redirecionamento aberto (phishing) |
 | D30 | Mensagens de login/recuperação não revelam se o e-mail existe | Evita enumeração de contas |
 | D31 | Playwright adiantado da Fase 10: e2e com o Chrome do sistema (local) e Chromium (CI), desktop + 375px | Prova os fluxos de autenticação de ponta a ponta |
+| D33 | Funções auxiliares do RLS (`is_admin`, `is_active_prestador`, `eh_dono_da_proposta`, `eh_usuario_final`) no schema **`private`** (não exposto pela API); `admin_resumo_prestadores` fica em `public` de propósito (aviso do advisor aceito) | Advisors da nuvem: SECURITY DEFINER não deve ser chamável por /rpc sem necessidade |
+| D34 | Projeto na nuvem: `ovahgvavuyuvcxfztiub` (linkado pela CLI). Migrations sobem com `npx supabase db push --remote` (sempre `--dry-run` antes) | Mesmo fluxo versionado do local |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.

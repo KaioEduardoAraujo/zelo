@@ -164,6 +164,19 @@ describe("dono e permissões do próprio prestador", () => {
   });
 });
 
+describe("funções auxiliares do RLS ficam fora da API", () => {
+  it("nem anon nem logado chamam is_admin / eh_dono_da_proposta via /rpc", async () => {
+    // Estão no schema `private`, que o PostgREST não expõe (migration 0007).
+    const anon = await anonClient().rpc("is_admin" as never);
+    expect(anon.error).not.toBeNull();
+    const logado = await a.client.rpc(
+      "eh_dono_da_proposta" as never,
+      { p_proposta_id: doA.propostaId } as never,
+    );
+    expect(logado.error).not.toBeNull();
+  });
+});
+
 describe("visitante sem login (anon)", () => {
   it("não acessa nenhuma tabela diretamente", async () => {
     const anon = anonClient();

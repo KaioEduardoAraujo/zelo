@@ -455,11 +455,7 @@ export type Database = {
           total_propostas: number;
         }[];
       };
-      eh_dono_da_proposta: { Args: { p_proposta_id: string }; Returns: boolean };
-      eh_usuario_final: { Args: Record<PropertyKey, never>; Returns: boolean };
       gerar_codigo_comprovante: { Args: Record<PropertyKey, never>; Returns: string };
-      is_active_prestador: { Args: Record<PropertyKey, never>; Returns: boolean };
-      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
     };
     Enums: {
       aceite_resultado: "aceito" | "recusado" | "ajuste";
