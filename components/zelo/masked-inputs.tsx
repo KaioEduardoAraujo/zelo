@@ -19,8 +19,9 @@ type BaseProps = Omit<
 export function CpfInput({
   name,
   defaultValue = "",
+  onValueChange,
   ...props
-}: BaseProps & { defaultValue?: string }) {
+}: BaseProps & { defaultValue?: string; onValueChange?: (digits: string) => void }) {
   const [value, setValue] = useState(maskCpf(defaultValue));
   return (
     <>
@@ -30,7 +31,11 @@ export function CpfInput({
         autoComplete="off"
         placeholder="000.000.000-00"
         value={value}
-        onChange={(e) => setValue(maskCpf(e.target.value))}
+        onChange={(e) => {
+          const masked = maskCpf(e.target.value);
+          setValue(masked);
+          onValueChange?.(onlyDigits(masked));
+        }}
       />
       <input type="hidden" name={name} value={onlyDigits(value)} />
     </>
@@ -40,8 +45,9 @@ export function CpfInput({
 export function PhoneInput({
   name,
   defaultValue = "",
+  onValueChange,
   ...props
-}: BaseProps & { defaultValue?: string }) {
+}: BaseProps & { defaultValue?: string; onValueChange?: (digits: string) => void }) {
   const [value, setValue] = useState(maskPhone(defaultValue));
   return (
     <>
@@ -52,7 +58,11 @@ export function PhoneInput({
         autoComplete="tel-national"
         placeholder="(11) 98765-4321"
         value={value}
-        onChange={(e) => setValue(maskPhone(e.target.value))}
+        onChange={(e) => {
+          const masked = maskPhone(e.target.value);
+          setValue(masked);
+          onValueChange?.(onlyDigits(masked));
+        }}
       />
       <input type="hidden" name={name} value={onlyDigits(value)} />
     </>

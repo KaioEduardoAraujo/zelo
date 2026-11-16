@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
@@ -89,4 +89,108 @@ export async function sair(page: Page) {
     await page.getByRole("button", { name: "Sair da conta" }).click();
   }
   await expect(page).toHaveURL(/\/login$/);
+}
+
+const hashAleatorio = () => createHash("sha256").update(randomBytes(16)).digest("hex");
+
+export type StatusSemeado = "rascunho" | "enviada" | "visualizada" | "ajuste_solicitado" | "aceita";
+
+/**
+ * Cria uma proposta já no status pedido, direto pela service_role (só no Supabase local).
+ * Os triggers do banco continuam valendo: o status só avança se o registro do cliente existir.
+ */
+export async function semearProposta(
+  prestadorId: string,
+  opts: {
+    titulo?: string;
+    cliente?: string;
+    status?: StatusSemeado;
+    valorCentavos?: number;
+    validadeDias?: number;
+  } = {},
+) {
+  const valor = opts.valorCentavos ?? 97_000;
+  const conteudo = {
+    escopo: "Troca da tela do aparelho, com testes de touch, câmera e Face ID depois do reparo.",
+    itens: [
+      {
+        descricao: "Tela compatível com o modelo",
+        unidade: "un",
+        quantidade: 1,
+        valor_unitario_centavos: valor,
+      },
+    ],
+    exclusoes: ["Recuperação de dados"],
+    valor_total_centavos: valor,
+    prazo: "2 dias úteis",
+    pagamento: "Pix na retirada do aparelho",
+    garantia: "90 dias para peça e serviço",
+    validade_dias: opts.validadeDias ?? 7,
+  };
+  const status = opts.status ?? "rascunho";
+
+  const { data: p, error } = await service
+    .from("propostas")
+    .insert({
+      prestador_id: prestadorId,
+      cliente_nome: opts.cliente ?? "Rafael Lima",
+      cliente_email: "rafael@example.com",
+      titulo: opts.titulo ?? "Troca de tela iPhone 12",
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const { data: v, error: e2 } = await service
+    .from("proposta_versoes")
+    .insert({ proposta_id: p.id, numero: 1, conteudo })
+    .select("id")
+    .single();
+  if (e2) throw e2;
+  if (status === "rascunho") return { id: p.id, versaoId: v.id, hash: null };
+
+  const hash = hashAleatorio();
+  const { error: e3 } = await service
+    .from("proposta_versoes")
+    .update({ enviada_em: new Date().toISOString(), hash_sha256: hash })
+    .eq("id", v.id);
+  if (e3) throw e3;
+
+  const { error: e4 } = await service
+    .from("propostas")
+    .update({
+      status: "enviada",
+      token_hash: hashAleatorio(),
+      validade_em: new Date(Date.now() + (opts.validadeDias ?? 7) * 864e5).toISOString(),
+    })
+    .eq("id", p.id);
+  if (e4) throw e4;
+
+  if (status === "aceita" || status === "ajuste_solicitado") {
+    const { error: e5 } = await service.from("aceites").insert({
+      versao_id: v.id,
+      resultado: status === "aceita" ? "aceito" : "ajuste",
+      comentario: status === "ajuste_solicitado" ? "Pode incluir a película?" : null,
+      cliente_nome: opts.cliente ?? "Rafael Lima",
+      cliente_cpf: status === "aceita" ? "52998224725" : null,
+      otp_verificado_em: new Date().toISOString(),
+      texto_consentimento: "Li a proposta e aceito os termos acima.",
+      hash_documento: hash,
+    });
+    if (e5) throw e5;
+  }
+  if (status !== "enviada") {
+    const { error: e6 } = await service.from("propostas").update({ status }).eq("id", p.id);
+    if (e6) throw e6;
+  }
+  return { id: p.id, versaoId: v.id, hash };
+}
+
+/** Nenhuma rolagem horizontal (DESIGN.md: funciona em 375px). */
+export async function semRolagemHorizontal(page: Page) {
+  const { scroll, viewport } = await page.evaluate(() => ({
+    scroll: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+  }));
+  expect(scroll, `largura do conteúdo em ${page.url()}`).toBeLessThanOrEqual(viewport);
 }

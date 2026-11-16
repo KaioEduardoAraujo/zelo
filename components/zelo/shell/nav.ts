@@ -22,8 +22,22 @@ export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Telas de "modo foco" (assistente e editor de modelo): sem navegação inferior no celular, para
+ * a barra de ações "Voltar / Continuar" ser a única coisa fixa no rodapé.
+ */
+export function isFocusMode(pathname: string) {
+  return (
+    /^\/propostas\/(nova|[^/]+\/editar)\/?$/.test(pathname) ||
+    /^\/templates\/[^/]+\/editar\/?$/.test(pathname)
+  );
+}
+
 /** Título da página na barra superior do mobile. */
 export function pageTitle(pathname: string) {
   if (pathname.startsWith(NEW_PROPOSAL.href)) return NEW_PROPOSAL.label;
+  if (/^\/propostas\/[^/]+\/editar/.test(pathname)) return "Editar proposta";
+  if (/^\/propostas\/[^/]+\/?$/.test(pathname)) return "Proposta";
+  if (/^\/templates\/[^/]+\/editar/.test(pathname)) return "Editar modelo";
   return NAV_ITEMS.find((i) => isActive(pathname, i.href))?.label ?? "Zelo";
 }

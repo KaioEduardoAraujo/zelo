@@ -41,7 +41,7 @@ dois → painel mostra "Aceita" → no fim, aceite de entrega. Aditivos de escop
 | Validação | Zod 4 |
 | PDF | `@react-pdf/renderer` (Fase 7) |
 | E-mail | Resend (padrão) ou SMTP/Gmail com `nodemailer`, por `EMAIL_PROVIDER` |
-| Testes | Vitest (+ Playwright no fluxo principal, se der tempo) |
+| Testes | Vitest (unitários e banco) + Playwright (fluxos no navegador, desktop e 375px) |
 | Deploy | Vercel Hobby + GitHub Actions (CI e keep-alive do Supabase) |
 
 **Atenção ao Next 16** (ver `AGENTS.md`): consulte `node_modules/next/dist/docs/` antes de usar
@@ -82,7 +82,8 @@ função `admin_resumo_prestadores()` (contagens para o admin), buckets privados
 
 **Conteúdo da versão** (`lib/validation/proposta.ts`, valores em **centavos**):
 `{ escopo, itens[{descricao, unidade, quantidade, valor_unitario_centavos}], exclusoes[],
-valor_total_centavos, prazo, pagamento, garantia, observacoes? }`. Templates têm também `validade_dias`.
+valor_total_centavos, prazo, pagamento, garantia, validade_dias, observacoes? }`. Template = mesmo formato.
+Rascunho usa a normalização tolerante (`lib/proposals/draft.ts`); envio exige o schema estrito.
 
 **Regras garantidas por trigger** (`supabase/migrations/*_triggers.sql`): perfil nasce como
 prestador (metadados do cadastro ignorados); prestador não muda `role`/`ativo`; admin só muda `ativo`
@@ -158,6 +159,16 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D38 | `/dev/componentes`: vitrine do design system, `notFound()` em produção | Revisar componentes em 375/1280 sem expor em produção |
 | D39 | `devIndicators: false` no `next.config.ts` | O botão "N" do modo dev cobria o canto inferior esquerdo (Sair, Início) |
 | D40 | Playwright: porta 3000 (reaproveita o `npm run dev`), 2 workers, timeout de 60s/15s | Next 16 não permite dois `next dev` na mesma pasta; modo dev é lento em máquina carregada |
+| D41 | `validade_dias` (1 a 90) faz parte do **conteúdo da versão** (e portanto do hash); template e proposta usam o mesmo schema estrito (`conteudoPropostaSchema`) | A validade é parte do que foi combinado; no envio vira `validade_em` |
+| D42 | Assistente: a etapa 1 (`/propostas/nova`) **cria** o rascunho (proposta + versão 1); as etapas 2–4 ficam em `/propostas/[id]/editar?etapa=N`. O preço de cada item é digitado na etapa 3 ("Valores"), como no DESIGN.md | Autosave precisa de um id; o fluxo "Valores" separado deixa cada linha curta no celular |
+| D43 | Autosave: debounce de 1,5 s, controlador sem React (`lib/autosave.ts`, testado com relógio falso): nunca dois salvamentos ao mesmo tempo, edição feita durante um salvamento não se perde, falha de rede mantém o valor pendente. O servidor grava o conteúdo sempre (leniente) e cada dado do cliente **só se já estiver válido**; recalcula o total e descarta chaves desconhecidas | Nunca perder o que a pessoa digitou; o total do navegador não é confiável |
+| D44 | `normalizarConteudo` é **tolerante campo a campo**; limites são cobrados pela validação (mensagem no campo) e pelo servidor (recusa gravar, não trunca) | Teste achou bug: um campo fora do limite apagava o rascunho inteiro |
+| D45 | View `propostas_situacao` ganha `valor_total_centavos` (versão atual; só lido se for número). `resumo_painel()` é `SECURITY INVOKER` (RLS vale): aceites de **proposta e aditivo** no mês de Brasília; "aguardando" = enviada/visualizada ainda na validade | Painel sem baixar o conteúdo de cada versão; um jsonb malformado não quebra a listagem |
+| D46 | Telas de "modo foco" (assistente, editor de modelo) escondem a navegação inferior no celular; só a barra de ações fica fixa | A barra "Voltar / Continuar" não compete com a navegação |
+| D47 | `cn` (`lib/utils.ts`) criado com `createCn` registrando `text-display/h1/h2/h3/body/support/label` como **font-size** | Sem isso `cn("text-h1 text-navy-950")` descartava o tamanho (bug desde a Fase 3) |
+| D48 | Modelos do Zelo são só leitura; "Duplicar e personalizar" cria uma cópia do prestador (`dono_id`). Modelo salvo é sempre conteúdo **completo** (formato estrito) | Quem usa um modelo começa de algo pronto |
+| D49 | Página fora do intervalo (PGRST103) vira "última página" em vez de erro; `loading.tsx` só na listagem (route group `(lista)`), para a proposta alheia responder **HTTP 404** de verdade | Entrada hostil/antiga não pode derrubar a tela; 404 sem streaming prévio |
+| D50 | "Criar nova versão" copia a versão atual como rascunho; o trigger devolve a proposta a `rascunho`. Enquanto isso o banco **recusa aceite** (exige enviada/visualizada): a página pública (Fase 6) precisa mostrar "o prestador está atualizando esta proposta" | Versão enviada é imutável; link antigo não pode aceitar uma versão substituída |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -170,7 +181,13 @@ app/                      rotas: (auth)/ login, cadastro, esqueci-senha, redefin
 components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
 components/zelo/          componentes da marca: Logo, StatusBadge, AcceptanceStamp, ProposalCard, AuditTimeline,
                           EmptyState, ConfirmDialog, PageHeader, FormField, masked-inputs (CPF, telefone, dinheiro)
-components/zelo/shell/    AppShell + nav.ts (itens, item ativo, título da página)
+components/zelo/shell/    AppShell + nav.ts (itens, item ativo, título da página, modo foco)
+components/zelo/proposal/ assistente (wizard, stepper, fields, erros-context, save-indicator) e ProposalDocument
+lib/proposals/            draft.ts (normalizar/validar por etapa), attention.ts, search.ts, queries.ts, actions.ts
+lib/templates/actions.ts  duplicar, salvar e excluir modelos
+lib/autosave.ts           controlador do autosave (sem React); hook em lib/hooks/use-autosave.ts
+lib/nichos.ts             rótulos dos ramos
+app/not-found.tsx, app/error.tsx   404 e erro em português
 app/dev/componentes/      vitrine do design system (só em desenvolvimento)
 lib/status.ts             rótulos/tons dos status e textos dos eventos de auditoria
 lib/masks.ts              máscaras de CPF, telefone e dinheiro (centavos)

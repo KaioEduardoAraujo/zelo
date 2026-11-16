@@ -41,8 +41,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 1 | Banco de dados: tabelas, RLS, triggers de imutabilidade, seeds | ✅ Concluída |
 | 2 | Autenticação, papéis, recuperação de senha, conta suspensa | ✅ Concluída |
 | 3 | Design system e shell do app (desktop e celular) | ✅ Concluída |
-| 4 | Propostas: listagem, assistente de criação, rascunho, versões | ⏳ Próxima |
-| 5 | Envio: hash da versão, token do link, WhatsApp | Planejada |
+| 4 | Propostas: listagem, assistente de criação, rascunho, versões | ✅ Concluída |
+| 5 | Envio: hash da versão, token do link, WhatsApp | ⏳ Próxima |
 | 6 | Página pública do cliente com aceite por código (OTP) | Planejada |
 | 7 | PDF comprovante, e-mail e verificação de integridade | Planejada |
 | 8 | Aditivo e aceite de entrega (com fotos) | Planejada |

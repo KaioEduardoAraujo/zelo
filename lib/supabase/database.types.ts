@@ -379,6 +379,7 @@ export type Database = {
           titulo: string;
           token_hash: string | null;
           validade_em: string | null;
+          valor_total_centavos: number | null;
           versao_atual: number;
         };
         ComputedFields: never;
@@ -397,6 +398,7 @@ export type Database = {
           titulo?: string | null;
           token_hash?: string | null;
           validade_em?: string | null;
+          valor_total_centavos?: never;
           versao_atual?: number | null;
         };
         Update: {
@@ -414,6 +416,7 @@ export type Database = {
           titulo?: string | null;
           token_hash?: string | null;
           validade_em?: string | null;
+          valor_total_centavos?: never;
           versao_atual?: number | null;
         };
         Relationships: [
@@ -456,6 +459,14 @@ export type Database = {
         }[];
       };
       gerar_codigo_comprovante: { Args: Record<PropertyKey, never>; Returns: string };
+      resumo_painel: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          aceitas_mes: number;
+          aguardando: number;
+          valor_aceito_mes_centavos: number;
+        }[];
+      };
     };
     Enums: {
       aceite_resultado: "aceito" | "recusado" | "ajuste";

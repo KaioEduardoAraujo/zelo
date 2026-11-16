@@ -55,3 +55,14 @@ export function formatRelative(date: Date | string, now: Date = new Date()): str
   }
   return "agora";
 }
+
+const time = new Intl.DateTimeFormat("pt-BR", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** Só a hora, no fuso de Brasília: "14:32". */
+export function formatTime(date: Date | string): string {
+  return time.format(new Date(date));
+}

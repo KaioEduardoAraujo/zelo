@@ -9,7 +9,7 @@ import { Logo } from "@/components/zelo/logo";
 import { logout } from "@/lib/auth/actions";
 import { cn } from "@/lib/utils";
 
-import { isActive, NAV_ITEMS, NEW_PROPOSAL, pageTitle } from "./nav";
+import { isActive, isFocusMode, NAV_ITEMS, NEW_PROPOSAL, pageTitle } from "./nav";
 
 type ShellProfile = { nome: string; empresaNome: string | null };
 
@@ -26,6 +26,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const foco = isFocusMode(pathname);
 
   return (
     <div className="min-h-dvh">
@@ -107,50 +108,55 @@ export function AppShell({
 
       <main
         id="conteudo"
-        className="px-4 pt-6 pb-28 md:px-8 lg:pt-10 lg:pb-12 lg:pl-[calc(15rem+2rem)]"
+        className={cn(
+          "px-4 pt-6 md:px-8 lg:pt-10 lg:pb-12 lg:pl-[calc(15rem+2rem)]",
+          foco ? "pb-6" : "pb-28",
+        )}
       >
         <div className="mx-auto max-w-5xl">{children}</div>
       </main>
 
-      {/* Navegação inferior (mobile) */}
-      <nav
-        aria-label="Principal"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
-      >
-        <ul className="grid h-16 grid-cols-5 items-center">
-          {[NAV_ITEMS[0], NAV_ITEMS[1], NEW_PROPOSAL, NAV_ITEMS[2], NAV_ITEMS[3]].map((item) => {
-            if (item.href === NEW_PROPOSAL.href) {
+      {/* Navegação inferior (mobile). Some nas telas de modo foco (assistente). */}
+      {!foco && (
+        <nav
+          aria-label="Principal"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
+        >
+          <ul className="grid h-16 grid-cols-5 items-center">
+            {[NAV_ITEMS[0], NAV_ITEMS[1], NEW_PROPOSAL, NAV_ITEMS[2], NAV_ITEMS[3]].map((item) => {
+              if (item.href === NEW_PROPOSAL.href) {
+                return (
+                  <li key={item.href} className="flex justify-center">
+                    <Link
+                      href={item.href}
+                      aria-label={item.label}
+                      className="-mt-6 flex size-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-[var(--shadow-overlay)] transition-colors hover:bg-teal-700"
+                    >
+                      <item.icon className="size-6" strokeWidth={2} aria-hidden="true" />
+                    </Link>
+                  </li>
+                );
+              }
+              const active = isActive(pathname, item.href);
               return (
                 <li key={item.href} className="flex justify-center">
                   <Link
                     href={item.href}
-                    aria-label={item.label}
-                    className="-mt-6 flex size-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-[var(--shadow-overlay)] transition-colors hover:bg-teal-700"
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] text-[0.75rem] font-semibold",
+                      active ? "text-teal-600" : "text-slate-600",
+                    )}
                   >
-                    <item.icon className="size-6" strokeWidth={2} aria-hidden="true" />
+                    <item.icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
+                    {item.label}
                   </Link>
                 </li>
               );
-            }
-            const active = isActive(pathname, item.href);
-            return (
-              <li key={item.href} className="flex justify-center">
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex min-h-11 min-w-16 flex-col items-center justify-center gap-0.5 rounded-[var(--radius-control)] text-[0.75rem] font-semibold",
-                    active ? "text-teal-600" : "text-slate-600",
-                  )}
-                >
-                  <item.icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+            })}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }

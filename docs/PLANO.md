@@ -84,7 +84,12 @@ Mais simples e sempre correto.
   proposta" no mobile.
 - Página interna `/dev/componentes` (só em desenvolvimento) para revisar tudo em 375/1280px.
 
-## Fase 4 — Propostas
+## Fase 4 — Propostas ✅
+
+> Feito: listagem (busca, status, paginação), assistente em 4 etapas com pré-visualização e
+> autosave, versionamento, detalhe com trilha e hash, modelos (duplicar/personalizar) e painel.
+> Fora do escopo desta fase: o botão **Enviar** (Fase 5): a etapa 4 termina em "Concluir
+> rascunho". Ver decisões D41–D50 no `CLAUDE.md`.
 
 - Lista com busca e filtro por status (cards no mobile, tabela no desktop), paginação simples.
 - Assistente em 4 etapas (Cliente e template → Escopo e itens → Valores, prazo e pagamento →
@@ -97,6 +102,10 @@ Mais simples e sempre correto.
 - Painel inicial: 3 números + "Precisa de atenção" + recentes.
 
 ## Fase 5 — Envio
+
+> Ao implementar: usar `conteudo.validade_dias` para calcular `validade_em` no envio (D41); ao
+> enviar a versão N+1, gerar token novo (D18); a nova versão só pode ser enviada se
+> `validarTudo` (lib/proposals/draft.ts) estiver limpo, agora também **no servidor**.
 
 - `lib/crypto/canonical.ts` (JSON canônico) + `hash.ts` (SHA-256) — **com testes** (ordem das
   chaves não muda o hash; qualquer alteração muda).
