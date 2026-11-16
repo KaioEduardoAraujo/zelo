@@ -59,7 +59,9 @@ Mais simples e sempre correto.
 
 *Pronto quando:* testes de RLS e de imutabilidade passando localmente.
 
-## Fase 2 — Autenticação e papéis
+## Fase 2 — Autenticação e papéis ✅
+
+> Feito, com 26 testes e2e (desktop e 375px) e testes unitários de validação e redirecionamento.
 
 - Telas `(auth)/login`, `cadastro`, `esqueci-senha`, `redefinir-senha` (DESIGN.md 7.2.1: formulário
   + painel da marca no desktop).
@@ -141,6 +143,7 @@ Mais simples e sempre correto.
 
 ## Fase 9 — Admin
 
+- Suspender também aplica `ban_duration` no Supabase Auth (a sessão para de renovar) e reativar remove o ban.
 - `(admin)/admin`: tabela de prestadores (nome, empresa, e-mail, propostas, aceites, status),
   ativar/suspender com confirmação, contadores gerais, gestão de templates globais.
 
@@ -152,7 +155,9 @@ Mais simples e sempre correto.
 - `README.md` (arquitetura, como rodar, decisões, limitações, evolução).
 - GitHub Actions: CI (lint, tipos, testes; testes de banco com Supabase local no runner) e
   **keep-alive** agendado a cada 3 dias (consulta leve com a chave pública).
-- Deploy na Vercel com variáveis configuradas; checar URLs de redirecionamento do Supabase Auth.
+- Deploy na Vercel com variáveis configuradas.
+- Supabase (nuvem), no painel: Site URL = URL da Vercel; Redirect URLs; templates de e-mail de
+  `supabase/templates/`; "Confirm email" desligado; senha mín. 8 com letras e números; SMTP próprio.
 
 ---
 

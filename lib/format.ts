@@ -5,7 +5,12 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 /** 8400 → "R$ 8.400,00" */
 export function formatCurrency(value: number): string {
   // Intl usa espaço não separável depois de "R$"; normalizamos para espaço comum.
-  return brl.format(value).replace(/ /g, " ");
+  return brl.format(value).replace(/\u00a0/g, " ");
+}
+
+/** Valores do banco estão em centavos: 840000 → "R$ 8.400,00" */
+export function formatCentavos(centavos: number): string {
+  return formatCurrency(centavos / 100);
 }
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {

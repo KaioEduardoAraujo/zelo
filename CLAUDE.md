@@ -142,15 +142,30 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D21 | `pdf_path` do aceite é definido **antes** de gerar o PDF (`<prestador_id>/<aceite_id>.pdf`) | Aceite é append-only: não pode receber UPDATE depois |
 | D22 | Admin criado por script (`npm run db:seed-admin`), não por SQL | Senha não fica em arquivo versionado |
 | D23 | E-mails locais vão para o **Mailpit** do Supabase (SMTP 127.0.0.1:54325, UI :54324) | Testar e-mails sem gastar cota do Resend |
+| D24 | Snapshot dos dados do cliente/prestador dentro do `conteudo` antes do hash (Fase 5) | O hash cobre tudo o que foi combinado (aprovado) |
+| D25 | Autorização em 3 camadas: `proxy.ts` (redirecionamento otimista + renovação de sessão) → DAL `lib/auth/dal.ts` (`requireUser/requirePrestador/requireAdmin`, usa `getUser()`) em cada layout, página e action → RLS no banco | Proxy não é barreira de segurança; layouts não re-renderizam em toda navegação |
+| D26 | Links de e-mail com **token_hash** → `/auth/confirm` (templates PT-BR em `supabase/templates/`), não PKCE | PKCE só funciona no mesmo navegador; o cliente pode pedir no PC e abrir no celular |
+| D27 | Confirmação de e-mail no cadastro **desligada** no MVP | SMTP gratuito do Supabase é limitado; reduz atrito |
+| D28 | Conta suspensa: login encerra a sessão e explica; sessão já aberta é mandada para `/conta-suspensa` pelo DAL. Na Fase 9, suspender também bane o usuário no Supabase Auth | Bloqueio no app, no banco (RLS) e no Auth |
+| D29 | Parâmetro `next` validado por `safeNextPath` (só caminhos internos) | Evita redirecionamento aberto (phishing) |
+| D30 | Mensagens de login/recuperação não revelam se o e-mail existe | Evita enumeração de contas |
+| D31 | Playwright adiantado da Fase 10: e2e com o Chrome do sistema (local) e Chromium (CI), desktop + 375px | Prova os fluxos de autenticação de ponta a ponta |
+| D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
 
 ## Estrutura
 
 ```
-app/                      rotas (App Router). Futuro: (auth)/, (app)/, (admin)/, p/[token]/, verificar/
+app/                      rotas: (auth)/ login, cadastro, esqueci-senha, redefinir-senha, conta-suspensa;
+                          (app)/ área do prestador; (admin)/admin; auth/confirm (links de e-mail). Futuro: p/[token]/, verificar/
 components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
 components/zelo/          componentes da marca: Logo, AcceptanceStamp (Fase 3: StatusBadge, ProposalCard, AuditTimeline…)
+proxy.ts                  renova sessão + redirecionamento otimista (antigo middleware)
+lib/auth/                 routes.ts (rotas, safeNextPath), dal.ts (checagem no servidor), actions.ts (login, cadastro, senha)
+lib/validation/auth.ts    schemas Zod dos formulários de acesso
+supabase/templates/       e-mails de Auth em PT-BR (recuperar senha, confirmar cadastro)
+tests/e2e/                Playwright (support.ts: contas via Admin API e leitura do Mailpit)
 lib/env.ts                env públicas (Zod)
 lib/env.server.ts         segredos (server-only)
 lib/supabase/             client.ts (navegador), server.ts (usuário logado), service.ts (service_role, só servidor)
@@ -180,7 +195,8 @@ npm run lint          # ESLint (com eslint-config-prettier)
 npm run typecheck     # next typegen + tsc --noEmit
 npm test              # testes unitários (Vitest, projeto "unit")
 npm run test:db       # testes de banco: RLS, imutabilidade, seeds (exige Supabase local)
-npm run check         # lint + typecheck + unit + db (rodar antes de cada commit de fase)
+npm run test:e2e      # Playwright: fluxos no navegador (sobe `next dev` na porta 3100)
+npm run check         # lint + typecheck + unit + db + e2e (rodar antes de cada commit de fase)
 npm run format        # Prettier (com ordenação de classes Tailwind)
 
 npm run db:start      # sobe o Supabase local (Docker). Studio: http://127.0.0.1:54323

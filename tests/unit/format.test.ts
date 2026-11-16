@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCurrency, formatDateTime, maskCpf } from "@/lib/format";
+import { formatCentavos, formatCurrency, formatDateTime, maskCpf } from "@/lib/format";
 
 describe("formatCurrency", () => {
   it("formata em reais com separadores brasileiros", () => {
     expect(formatCurrency(8400)).toBe("R$ 8.400,00");
     expect(formatCurrency(1234.5)).toBe("R$ 1.234,50");
+  });
+});
+
+describe("formatCentavos", () => {
+  it("converte centavos em reais", () => {
+    expect(formatCentavos(840_000)).toBe("R$ 8.400,00");
+    expect(formatCentavos(97_050)).toBe("R$ 970,50");
   });
 });
 

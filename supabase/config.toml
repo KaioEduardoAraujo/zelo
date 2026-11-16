@@ -206,7 +206,9 @@ anonymous_users = 30
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
-sign_in_sign_ups = 30
+# Zelo: valor alto SÓ no ambiente local, porque os testes e2e/db fazem dezenas de logins do mesmo IP.
+# NÃO usar `supabase config push` sem revisar: em produção o limite fica no padrão do painel.
+sign_in_sign_ups = 300
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
 token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
@@ -253,6 +255,15 @@ otp_expiry = 3600
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
+
+# Templates do Zelo (PT-BR). Usam token_hash → /auth/confirm (funciona em outro dispositivo).
+[auth.email.template.recovery]
+subject = "Crie uma nova senha no Zelo"
+content_path = "./supabase/templates/recuperar-senha.html"
+
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail no Zelo"
+content_path = "./supabase/templates/confirmar-cadastro.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

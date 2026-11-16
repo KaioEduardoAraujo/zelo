@@ -12,14 +12,15 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run test:db",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:db && npm run test:e2e",
     "test:db": "vitest run --project db",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > lib/supabase/database.types.ts && prettier --write lib/supabase/database.types.ts",
     "db:advisors": "supabase db advisors",
-    "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.ts"
+    "db:seed-admin": "node --env-file=.env.local scripts/seed-admin.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -39,6 +40,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
