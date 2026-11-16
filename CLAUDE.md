@@ -74,8 +74,24 @@ Coluna `role` em `profiles`: `admin` | `prestador`.
   criado_em) — append-only.
 - `otp_codigos` (id, proposta_id, email, codigo_hash, expira_em, tentativas, usado_em).
 
-Status da proposta: `rascunho`, `enviada`, `visualizada`, `aceita`, `recusada`, `expirada`
-(+ `ajuste_solicitado`, proposto no plano).
+Status gravados: `rascunho`, `enviada`, `visualizada`, `aceita`, `recusada`, `ajuste_solicitado`.
+`expirada` é **calculada na leitura** pela view `propostas_situacao` (coluna `status_efetivo`).
+Extras: `aceites.codigo_comprovante` (`ZL-XXXX-XXXX`, gerado pelo banco), `propostas.atualizado_em`,
+função `admin_resumo_prestadores()` (contagens para o admin), buckets privados `comprovantes` e
+`entregas` (caminho `<prestador_id>/...`).
+
+**Conteúdo da versão** (`lib/validation/proposta.ts`, valores em **centavos**):
+`{ escopo, itens[{descricao, unidade, quantidade, valor_unitario_centavos}], exclusoes[],
+valor_total_centavos, prazo, pagamento, garantia, observacoes? }`. Templates têm também `validade_dias`.
+
+**Regras garantidas por trigger** (`supabase/migrations/*_triggers.sql`): perfil nasce como
+prestador (metadados do cadastro ignorados); prestador não muda `role`/`ativo`; admin só muda `ativo`
+de outros; versões nascem rascunho, numeradas pelo banco, uma em rascunho por vez, imutáveis após
+envio; nova versão volta a proposta a rascunho; dados do cliente só mudam em rascunho;
+`aceita/recusada/ajuste_solicitado` exigem o registro em `aceites`; prestador só move status para
+rascunho/enviada; aceite exige versão atual enviada, dentro da validade e com hash igual; aditivo/entrega
+só apontam para proposta aceita do mesmo prestador; `criado_em` de aceites/eventos é sempre `now()`;
+TRUNCATE bloqueado nas tabelas de prova.
 
 ## Regras inegociáveis (segurança e integridade)
 
@@ -116,6 +132,16 @@ Status da proposta: `rascunho`, `enviada`, `visualizada`, `aceita`, `recusada`, 
 | D11 | Logo **reconstruída geometricamente** em SVG (`scripts/brand/build.mjs`), não trace do JPEG; wordmark em Manrope ExtraBold convertido em curvas | Curvas limpas e simétricas; reprodutível. Revisar com o autor |
 | D12 | `@types/node@22` | Node local é 22; vitest 5 exige ≥ 22 |
 | D13 | Utilitário `cn` vem do pacote oficial `cn` (shadcn-ui/cn), não de clsx + tailwind-merge | Padrão do shadcn atual |
+| D14 | Valores monetários em **centavos** (inteiros) | Sem erro de ponto flutuante; hash estável (aprovado) |
+| D15 | Status `ajuste_solicitado` | Painel precisa mostrar pedido de ajuste (aprovado) |
+| D16 | `expirada` calculada na leitura (view), sem cron | Mais simples e sempre correto (aprovado) |
+| D17 | Rate limiting em tabela do Postgres (Fase 6) | Sem serviço extra; memória não funciona na Vercel (aprovado) |
+| D18 | Reenviar link = gerar link novo (antigo deixa de valer) | Banco só guarda o hash do token (aprovado) |
+| D19 | Desenvolvimento e testes de banco no **Supabase local (Docker)** via `npx supabase`; nuvem só recebe migrations prontas | Testes rápidos e isolados; não gasta o plano gratuito |
+| D20 | `anon` sem nenhum privilégio nas tabelas (além do RLS); `authenticated` sem INSERT/UPDATE/DELETE em `aceites`/`auditoria_eventos` e sem acesso a `otp_codigos` | Defesa em profundidade: só o servidor grava provas |
+| D21 | `pdf_path` do aceite é definido **antes** de gerar o PDF (`<prestador_id>/<aceite_id>.pdf`) | Aceite é append-only: não pode receber UPDATE depois |
+| D22 | Admin criado por script (`npm run db:seed-admin`), não por SQL | Senha não fica em arquivo versionado |
+| D23 | E-mails locais vão para o **Mailpit** do Supabase (SMTP 127.0.0.1:54325, UI :54324) | Testar e-mails sem gastar cota do Resend |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
 
@@ -129,13 +155,18 @@ lib/env.ts                env públicas (Zod)
 lib/env.server.ts         segredos (server-only)
 lib/supabase/             client.ts (navegador), server.ts (usuário logado), service.ts (service_role, só servidor)
 lib/email/                interface de e-mail + provedores (Fase 6)
-lib/validation/           schemas Zod compartilhados
 lib/format.ts             moeda, data/hora (America/Sao_Paulo), máscara de CPF
 styles/tokens.css         tokens da marca (@theme do Tailwind)
-supabase/migrations/      migrations versionadas (Fase 1)
+supabase/migrations/      migrations versionadas: tipos, tabelas, índices, triggers, RLS, storage
+supabase/seed.sql         5 templates globais
+supabase/config.toml      config do Supabase local
+lib/supabase/database.types.ts  tipos gerados (npm run db:types) — não editar à mão
+lib/validation/proposta.ts      schema Zod do conteúdo da proposta/template
+scripts/seed-admin.ts     cria o admin
+tests/db/                 testes contra o Supabase local (helpers.ts cria usuários e propostas)
 public/brand/             logo.svg, symbol.svg, logo-negativo.svg
 scripts/brand/            gerador da marca (ferramenta avulsa)
-tests/unit/               testes Vitest
+tests/unit/               testes unitários
 brand-original/           JPEGs originais da logo (referência)
 docs/PLANO.md             plano das fases
 ```
@@ -147,9 +178,17 @@ npm run dev           # desenvolvimento em http://localhost:3000
 npm run build         # build de produção
 npm run lint          # ESLint (com eslint-config-prettier)
 npm run typecheck     # next typegen + tsc --noEmit
-npm test              # Vitest
-npm run check         # lint + typecheck + testes (rodar antes de cada commit de fase)
+npm test              # testes unitários (Vitest, projeto "unit")
+npm run test:db       # testes de banco: RLS, imutabilidade, seeds (exige Supabase local)
+npm run check         # lint + typecheck + unit + db (rodar antes de cada commit de fase)
 npm run format        # Prettier (com ordenação de classes Tailwind)
+
+npm run db:start      # sobe o Supabase local (Docker). Studio: http://127.0.0.1:54323
+npm run db:reset      # recria o banco local: migrations + supabase/seed.sql
+npm run db:types      # regenera lib/supabase/database.types.ts
+npm run db:advisors   # advisors de segurança/desempenho do Supabase
+npm run db:seed-admin # cria/promove o admin (SEED_ADMIN_* do .env.local)
+npm run db:stop       # desliga o Supabase local
 ```
 
 ## Convenções de UI (resumo do DESIGN.md)

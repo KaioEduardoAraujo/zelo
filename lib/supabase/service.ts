@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import { publicEnv } from "@/lib/env";
+import type { Database } from "@/lib/supabase/database.types";
 import { serverEnv } from "@/lib/env.server";
 
 /*
@@ -13,7 +14,11 @@ import { serverEnv } from "@/lib/env.server";
  * O "server-only" garante que este módulo nunca entra no bundle do navegador.
  */
 export function createServiceClient() {
-  return createClient(publicEnv().NEXT_PUBLIC_SUPABASE_URL, serverEnv().SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return createClient<Database>(
+    publicEnv().NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv().SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  );
 }

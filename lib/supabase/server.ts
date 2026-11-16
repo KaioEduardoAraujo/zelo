@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import { publicEnv } from "@/lib/env";
+import type { Database } from "@/lib/supabase/database.types";
 
 /*
  * Cliente para Server Components, Server Actions e Route Handlers, agindo COMO o
@@ -13,7 +14,7 @@ export async function createClient() {
   const env = publicEnv();
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {

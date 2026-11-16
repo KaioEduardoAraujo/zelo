@@ -5,9 +5,28 @@ export default defineConfig({
   plugins: [react()],
   resolve: { tsconfigPaths: true },
   test: {
-    environment: "node",
-    include: ["tests/**/*.test.{ts,tsx}", "**/*.test.{ts,tsx}"],
-    exclude: ["node_modules", ".next", "tests/e2e/**"],
     setupFiles: ["./tests/setup.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["tests/unit/**/*.test.{ts,tsx}"],
+        },
+      },
+      {
+        // Testes contra o Supabase LOCAL (Docker): `npm run db:start` antes.
+        extends: true,
+        test: {
+          name: "db",
+          environment: "node",
+          include: ["tests/db/**/*.test.ts"],
+          globalSetup: ["./tests/db/global-setup.ts"],
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
+    ],
   },
 });

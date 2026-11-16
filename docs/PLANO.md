@@ -11,7 +11,10 @@ Supabase (navegador, servidor, service) · Manrope e JetBrains Mono · logo em S
 
 ---
 
-## Fase 1 — Banco de dados
+## Fase 1 — Banco de dados ✅
+
+> Feito conforme abaixo, com 43 testes de banco. Extras: código curto do comprovante, view
+> `propostas_situacao`, triggers que impedem "forjar" aceite pelo status. Ver `CLAUDE.md`.
 
 **Ambiente:** Supabase CLI via `npx supabase` (devDependency) + **Supabase local no Docker** para
 desenvolver e testar; migrations aplicadas no projeto da nuvem com `supabase db push` (ou MCP).
@@ -94,6 +97,8 @@ Mais simples e sempre correto.
 - `lib/crypto/canonical.ts` (JSON canônico) + `hash.ts` (SHA-256) — **com testes** (ordem das
   chaves não muda o hash; qualquer alteração muda).
 - `lib/crypto/token.ts`: `randomBytes(32)` → base64url; banco guarda `HMAC(token)`.
+- Ao enviar, o `conteudo` da versão recebe um **retrato dos dados do cliente e do prestador**
+  (nome, e-mail, título, validade) antes do hash: assim o hash cobre tudo o que foi combinado.
 - Action "Enviar": valida, calcula hash, grava `enviada_em` + `hash_sha256` (trava a versão),
   gera token, registra evento `enviada`, status `enviada`. Tudo numa função SQL (`rpc`) para ser
   atômico.
