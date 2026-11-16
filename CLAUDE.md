@@ -78,7 +78,9 @@ Status gravados: `rascunho`, `enviada`, `visualizada`, `aceita`, `recusada`, `aj
 `expirada` é **calculada na leitura** pela view `propostas_situacao` (coluna `status_efetivo`).
 Extras: `aceites.codigo_comprovante` (`ZL-XXXX-XXXX`, gerado pelo banco), `propostas.atualizado_em`,
 funções `admin_resumo_prestadores()` (contagens para o admin), `resumo_painel()`, `enviar_versao()` e
-`regenerar_link()` (invólucros públicos; a lógica está em `private`), buckets privados `comprovantes` e
+`regenerar_link()` (invólucros públicos; a lógica está em `private`); funções só da service_role para a
+página do cliente (`registrar_abertura`, `registrar_otp`, `registrar_resposta`, `consumir_limite`) e a
+tabela `limites_taxa`, buckets privados `comprovantes` e
 `entregas` (caminho `<prestador_id>/...`).
 
 **Conteúdo da versão** (`lib/validation/proposta.ts`, valores em **centavos**):
@@ -180,6 +182,16 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D58 | O detalhe **recalcula o hash** de cada versão enviada a partir do que está guardado e mostra "Conteúdo conferido" (ou um alerta se não bater) | Confiança visível (DESIGN.md 1.5); base do `/verificar` (Fase 7) |
 | D59 | `logging.serverFunctions: false` no `next.config.ts` | O `next dev` imprimia os argumentos de cada Server Action (e-mails e nomes) no terminal; regra 9 |
 | D60 | `x-forwarded-for` só é confiável atrás da Vercel (ela o define); fora dela um cliente pode forjar o IP gravado na auditoria. IP só é gravado se for um IP válido (`net.isIP`) | Limitação conhecida, a registrar no README (Fase 10) |
+| D61 | Página pública `/p/[token]`: Server Component; busca pelo HMAC do token com a service_role (só no servidor); token malformado, inexistente ou substituído dão o **mesmo 404** ("Link inválido", `app/p/[token]/not-found.tsx`, sem links da área logada) | Não revela se a proposta existe; página leve para celular |
+| D62 | A abertura ("visualizada") é registrada pelo **navegador** depois de carregar (`RegistrarAbertura` → Server Action), não na renderização do servidor; no máximo uma abertura por IP+dispositivo a cada 10 min | O WhatsApp acessa o link para montar a prévia, sem rodar JavaScript: registrar no servidor marcaria "visualizada" antes de o cliente abrir |
+| D63 | Funções do cliente (`registrar_abertura`, `registrar_otp`, `registrar_resposta`, `consumir_limite`) só executáveis pela **service_role**, SECURITY INVOKER (triggers valem). `registrar_resposta` devolve um **status** para código errado em vez de lançar erro; resposta inválida (ex.: aceite sem CPF) desfaz tudo e o código não é consumido | Um erro desfaria o "+1" das tentativas (rollback) e o limite de 5 nunca seria atingido |
+| D64 | OTP: 6 dígitos (`randomInt`), guardado como HMAC de `proposta:ação:código` (código pedido para recusar não aceita), 10 min, 5 tentativas, 3 por hora por proposta, **só o mais recente vale**; "Reenviar" espera 60 s na tela | Regra 5; o e-mail diz para que serve o código |
+| D65 | Limite de taxa em `limites_taxa` com o **HMAC do IP** (nunca o IP): abrir 60/10 min, pedir código 10/h, responder 30/10 min. Sem IP conhecido vale só o limite por proposta; se o limitador falhar, não bloqueia (as regras do banco continuam) | Regra 10, LGPD |
+| D66 | E-mail atrás de `lib/email` (`EMAIL_PROVIDER` = `resend` \| `smtp`, mesma interface; anexos já suportados para a Fase 7). Templates escapam HTML do título e do nome do prestador; erros do provedor não vão para a tela nem para o console | D3; o título é digitado por usuários |
+| D67 | Texto de consentimento montado **no servidor** (`lib/publico/consentimento.ts`), mostrado e gravado igual; diz a finalidade dos dados. CPF só no aceite, validado pelos dígitos e mostrado mascarado | Regra 9 (LGPD) |
+| D68 | Cabeçalhos: `/p/*` com `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`; todo o site com `X-Frame-Options: DENY` e `nosniff` | O token está na URL: não pode vazar por referrer, ficar em cache nem ser indexado |
+| D69 | Botões que dependem de JavaScript ficam desabilitados até a hidratação (`lib/hooks/use-hidratado.ts`); nos e2e, `esperarAssistentePronto` | Toque antes da hidratação se perdia (celular lento); causava testes intermitentes |
+| D70 | No documento, a seção "Itens" chama-se **"O que está incluso"** (DESIGN.md 7.2.7). A pré-visualização do prestador usa o mesmo componente da página do cliente | O prestador vê exatamente o que o cliente verá |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -199,6 +211,12 @@ lib/proposals/            draft.ts (normalizar/validar por etapa), attention.ts,
 lib/templates/actions.ts  duplicar, salvar e excluir modelos
 lib/autosave.ts           controlador do autosave (sem React); hook em lib/hooks/use-autosave.ts
 lib/nichos.ts             rótulos dos ramos
+app/p/[token]/            página pública do cliente + not-found ("Link inválido")
+components/publico/       CabecalhoPublico, RespostaCliente (barra fixa + folha de aceite/recusa/ajuste), RegistrarAbertura
+lib/publico/              queries.ts (proposta pelo token), actions.ts (abrir, código, responder), otp.ts, consentimento.ts,
+                          schemas.ts, limites.ts (limite de taxa)
+lib/email/                interface + resend.ts + smtp.ts + templates.ts
+lib/http/origem.ts        IP e dispositivo da requisição (server-only)
 lib/crypto/               canonical.ts (JSON canônico), hash.ts (SHA-256, HMAC, comparação em tempo constante), token.ts (token do link)
 lib/proposals/envio.ts    prepararDocumento (documento selado), mensagem e link do WhatsApp
 lib/unidades.ts           unidades de medida dos itens
@@ -263,3 +281,4 @@ npm run db:stop       # desliga o Supabase local
 - Texto teal **só** `teal-600`; `teal-500` só decoração. Status sempre ícone + texto.
 - Raio: `--radius-control` 8px, `--radius-card` 12px, `--radius-pill`. Inputs ≥ 16px.
 - Única animação de marca: check se desenhando (`animate-draw-check`), respeitando reduced motion.
+- Botão que só funciona com JavaScript: `disabled={!hidratado}` (`useHidratado`).

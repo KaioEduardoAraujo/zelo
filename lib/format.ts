@@ -66,3 +66,13 @@ const time = new Intl.DateTimeFormat("pt-BR", {
 export function formatTime(date: Date | string): string {
   return time.format(new Date(date));
 }
+
+/**
+ * Mascara o e-mail para exibição (LGPD): "mariana.costa@example.com" → "m***@example.com".
+ * Quem tem o link vê para onde o código vai, sem ver o endereço inteiro.
+ */
+export function maskEmail(email: string): string {
+  const [usuario, dominio] = email.trim().split("@");
+  if (!usuario || !dominio) return "***";
+  return `${usuario[0]}***@${dominio}`;
+}

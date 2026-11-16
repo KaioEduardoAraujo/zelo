@@ -119,6 +119,25 @@ export type Database = {
           },
         ];
       };
+      limites_taxa: {
+        Row: {
+          chave: string;
+          contagem: number;
+          janela_inicio: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          chave: string;
+          contagem?: number;
+          janela_inicio: string;
+        };
+        Update: {
+          chave?: string;
+          contagem?: number;
+          janela_inicio?: string;
+        };
+        Relationships: [];
+      };
       otp_codigos: {
         Row: {
           codigo_hash: string;
@@ -458,6 +477,10 @@ export type Database = {
           total_propostas: number;
         }[];
       };
+      consumir_limite: {
+        Args: { p_chave: string; p_janela_segundos: number; p_limite: number };
+        Returns: boolean;
+      };
       enviar_versao: {
         Args: {
           p_documento: Json;
@@ -486,6 +509,45 @@ export type Database = {
           r_numero: number;
           r_validade_em: string;
           r_versao_id: string;
+        }[];
+      };
+      registrar_abertura: {
+        Args: { p_ip: unknown; p_proposta_id: string; p_user_agent: string };
+        Returns: undefined;
+      };
+      registrar_otp: {
+        Args: {
+          p_acao: Database["public"]["Enums"]["aceite_resultado"];
+          p_codigo_hash: string;
+          p_email: string;
+          p_ip: unknown;
+          p_proposta_id: string;
+          p_user_agent: string;
+        };
+        Returns: {
+          r_expira_em: string;
+          r_restantes: number;
+        }[];
+      };
+      registrar_resposta: {
+        Args: {
+          p_cliente_cpf: string;
+          p_cliente_nome: string;
+          p_codigo_hash: string;
+          p_comentario: string;
+          p_ip: unknown;
+          p_proposta_id: string;
+          p_resultado: Database["public"]["Enums"]["aceite_resultado"];
+          p_texto_consentimento: string;
+          p_user_agent: string;
+        };
+        Returns: {
+          r_aceite_id: string;
+          r_codigo_comprovante: string;
+          r_criado_em: string;
+          r_hash_documento: string;
+          r_status: string;
+          r_tentativas_restantes: number;
         }[];
       };
       resumo_painel: {

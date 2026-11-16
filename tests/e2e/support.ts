@@ -1,10 +1,12 @@
 import { execSync } from "node:child_process";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 import { expect, type Page } from "@playwright/test";
 
-import { hashDocumento } from "@/lib/crypto/hash";
+import { gerarToken, hashToken } from "@/lib/crypto/token";
+import { prepararDocumento } from "@/lib/proposals/envio";
 import type { Database } from "@/lib/supabase/database.types";
 
 /* Apoio dos testes e2e: só roda contra o Supabase LOCAL. */
@@ -92,7 +94,15 @@ export async function sair(page: Page) {
   await expect(page).toHaveURL(/\/login$/);
 }
 
-const hashAleatorio = () => createHash("sha256").update(randomBytes(16)).digest("hex");
+/** Segredo do HMAC do token (o mesmo do app): do ambiente ou do .env.local. */
+function lerPepper(): string {
+  if (process.env.HASH_PEPPER) return process.env.HASH_PEPPER;
+  const linha = readFileSync(".env.local", "utf8")
+    .split("\n")
+    .find((l) => l.startsWith("HASH_PEPPER="));
+  if (!linha) throw new Error("HASH_PEPPER não encontrado (.env.local)");
+  return linha.slice("HASH_PEPPER=".length).trim();
+}
 
 export type StatusSemeado = "rascunho" | "enviada" | "visualizada" | "ajuste_solicitado" | "aceita";
 
@@ -105,6 +115,7 @@ export async function semearProposta(
   opts: {
     titulo?: string;
     cliente?: string;
+    clienteEmail?: string;
     status?: StatusSemeado;
     valorCentavos?: number;
     validadeDias?: number;
@@ -135,7 +146,7 @@ export async function semearProposta(
     .insert({
       prestador_id: prestadorId,
       cliente_nome: opts.cliente ?? "Rafael Lima",
-      cliente_email: "rafael@example.com",
+      cliente_email: opts.clienteEmail ?? "rafael@example.com",
       titulo: opts.titulo ?? "Troca de tela iPhone 12",
     })
     .select("id")
@@ -148,12 +159,37 @@ export async function semearProposta(
     .select("id")
     .single();
   if (e2) throw e2;
-  if (status === "rascunho") return { id: p.id, versaoId: v.id, hash: null };
+  if (status === "rascunho") return { id: p.id, versaoId: v.id, hash: null, token: null };
 
-  const hash = hashDocumento(conteudo); // hash REAL do conteúdo: a página de detalhe o confere
+  // Documento selado EXATAMENTE como o app faz no envio (conteúdo + retrato das partes), com o
+  // hash real: o detalhe e a página pública conferem esse hash.
+  const { data: perfil } = await service
+    .from("profiles")
+    .select("nome, empresa_nome")
+    .eq("id", prestadorId)
+    .single();
+  const preparado = prepararDocumento({
+    propostaId: p.id,
+    versao: 1,
+    titulo: opts.titulo ?? "Troca de tela iPhone 12",
+    clienteNome: opts.cliente ?? "Rafael Lima",
+    clienteEmail: opts.clienteEmail ?? "rafael@example.com",
+    clienteTelefone: null,
+    prestadorNome: perfil?.nome ?? "Prestador",
+    prestadorEmpresa: perfil?.empresa_nome ?? null,
+    conteudo,
+  });
+  if (!preparado.ok) throw new Error(`semente inválida: ${JSON.stringify(preparado.erros)}`);
+  const hash = preparado.hash;
+  const token = gerarToken();
+
   const { error: e3 } = await service
     .from("proposta_versoes")
-    .update({ enviada_em: new Date().toISOString(), hash_sha256: hash })
+    .update({
+      conteudo: preparado.documento as never,
+      enviada_em: new Date().toISOString(),
+      hash_sha256: hash,
+    })
     .eq("id", v.id);
   if (e3) throw e3;
 
@@ -161,7 +197,7 @@ export async function semearProposta(
     .from("propostas")
     .update({
       status: "enviada",
-      token_hash: hashAleatorio(),
+      token_hash: hashToken(lerPepper(), token),
       validade_em: new Date(Date.now() + (opts.validadeDias ?? 7) * 864e5).toISOString(),
     })
     .eq("id", p.id);
@@ -184,7 +220,7 @@ export async function semearProposta(
     const { error: e6 } = await service.from("propostas").update({ status }).eq("id", p.id);
     if (e6) throw e6;
   }
-  return { id: p.id, versaoId: v.id, hash };
+  return { id: p.id, versaoId: v.id, hash, token };
 }
 
 /** Nenhuma rolagem horizontal (DESIGN.md: funciona em 375px). */
@@ -194,4 +230,20 @@ export async function semRolagemHorizontal(page: Page) {
     viewport: window.innerWidth,
   }));
   expect(scroll, `largura do conteúdo em ${page.url()}`).toBeLessThanOrEqual(viewport);
+}
+
+/** Zera os contadores do limite de taxa (só no Supabase local; o servidor local usa um IP só). */
+export async function zerarLimitesDeTaxa() {
+  const { error } = await service.from("limites_taxa").delete().neq("chave", "");
+  if (error) throw error;
+}
+
+/**
+ * Espera o assistente ficar pronto (JavaScript carregado). O botão "Continuar" só habilita depois
+ * da hidratação: interagir antes disso perde o clique, num teste ou num celular lento.
+ */
+export async function esperarAssistentePronto(page: Page) {
+  await expect(page.getByRole("button", { name: /^(Continuar|Enviar proposta)$/ })).toBeEnabled({
+    timeout: 30_000,
+  });
 }

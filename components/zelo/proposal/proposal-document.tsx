@@ -81,7 +81,7 @@ export function ProposalDocument({
           )}
         </Secao>
 
-        <Secao titulo="Itens">
+        <Secao titulo="O que está incluso">
           {conteudo.itens.length === 0 ? (
             <Pendente>Nenhum item incluído ainda.</Pendente>
           ) : (

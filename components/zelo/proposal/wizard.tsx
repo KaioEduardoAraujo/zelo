@@ -35,6 +35,7 @@ import { ProposalDocument } from "@/components/zelo/proposal/proposal-document";
 import { SaveIndicator } from "@/components/zelo/proposal/save-indicator";
 import { Stepper } from "@/components/zelo/proposal/stepper";
 import { useAutosave } from "@/lib/hooks/use-autosave";
+import { useHidratado } from "@/lib/hooks/use-hidratado";
 import { maskPhone } from "@/lib/masks";
 import {
   ETAPAS,
@@ -82,6 +83,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
   const [enviado, setEnviado] = useState<ResumoEnvio | null>(null);
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const tituloEnvioRef = useRef<HTMLHeadingElement>(null);
+  const hidratado = useHidratado();
 
   const { state, schedule, flush, controller } = useAutosave<SalvarRascunhoEntrada>(salvarRascunho);
 
@@ -368,7 +370,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
               )}
               <Button
                 type="submit"
-                disabled={finalizando || enviando}
+                disabled={!hidratado || finalizando || enviando}
                 className="flex-[2] sm:min-w-44 sm:flex-none"
               >
                 {ultima ? "Enviar proposta" : "Continuar"}

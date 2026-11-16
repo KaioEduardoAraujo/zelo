@@ -8,6 +8,7 @@ import type { AuditEvent } from "@/components/zelo/audit-timeline";
 import { hashConfere as confereHash } from "@/lib/crypto/hash";
 import { atencao, type Attention } from "@/lib/proposals/attention";
 import { normalizarConteudo } from "@/lib/proposals/draft";
+import { lerSnapshot, type SnapshotDocumento } from "@/lib/proposals/snapshot";
 import { PAGE_SIZE, type FiltrosListagem } from "@/lib/proposals/search";
 import type { EventoTipo, PropostaStatus } from "@/lib/status";
 import { createClient } from "@/lib/supabase/server";
@@ -142,33 +143,6 @@ export async function propostasRecentes(limite = 5): Promise<ProposalSummary[]> 
 }
 
 const idSchema = z.uuid();
-
-const ehObjeto = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-const texto = (v: unknown) => (typeof v === "string" ? v : "");
-const textoOuNulo = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
-
-/** Extrai o retrato das partes do jsonb bruto de uma versão enviada (null se não houver). */
-function lerSnapshot(bruto: unknown): SnapshotDocumento | null {
-  if (!ehObjeto(bruto) || !ehObjeto(bruto.prestador) || !ehObjeto(bruto.cliente)) return null;
-  return {
-    titulo: texto(bruto.titulo),
-    prestador: { nome: texto(bruto.prestador.nome), empresa: textoOuNulo(bruto.prestador.empresa) },
-    cliente: {
-      nome: texto(bruto.cliente.nome),
-      email: texto(bruto.cliente.email),
-      telefone: textoOuNulo(bruto.cliente.telefone),
-    },
-  };
-}
-
-/** Retrato das partes gravado no documento no momento do envio (decisão D24). */
-export type SnapshotDocumento = {
-  titulo: string;
-  prestador: { nome: string; empresa: string | null };
-  cliente: { nome: string; email: string; telefone: string | null };
-};
 
 export type VersaoDetalhe = {
   id: string;

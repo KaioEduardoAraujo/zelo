@@ -2,7 +2,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { hashDocumento } from "@/lib/crypto/hash";
 
-import { criarConta, entrar, semRolagemHorizontal, semearProposta, service } from "./support";
+import {
+  criarConta,
+  entrar,
+  esperarAssistentePronto,
+  semRolagemHorizontal,
+  semearProposta,
+  service,
+} from "./support";
 
 async function login(page: Page, conta: { email: string; password: string }) {
   await entrar(page, conta.email, conta.password);
@@ -51,6 +58,7 @@ test.describe("enviar a proposta", () => {
     await login(page, conta);
 
     await page.goto(`/propostas/${id}/editar?etapa=4`);
+    await esperarAssistentePronto(page);
     await expect(page.getByRole("heading", { name: "Revisar", level: 2 })).toBeVisible();
     await expect(page.getByText("Falta preencher")).toHaveCount(0);
     await enviarPelaEtapa4(page);
@@ -138,6 +146,7 @@ test.describe("enviar a proposta", () => {
     await login(page, conta);
 
     await page.goto(`/propostas/${id}/editar?etapa=4`);
+    await esperarAssistentePronto(page);
     await expect(page.getByText("Falta preencher")).toBeVisible();
     await expect(page.getByText("Informe o prazo.")).toBeVisible();
     await page.getByRole("button", { name: "Enviar proposta" }).click();
@@ -167,6 +176,7 @@ test.describe("enviar a proposta", () => {
     await login(page, conta);
 
     await page.goto(`/propostas/${id}/editar?etapa=4`);
+    await esperarAssistentePronto(page);
     await page.getByRole("button", { name: "Enviar proposta" }).click();
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(/não pode mais ser editada/)).toBeVisible();

@@ -124,7 +124,10 @@ Mais simples e sempre correto.
   link depois, o prestador **gera um novo link** (o antigo deixa de valer), porque não guardamos o
   token em texto puro.
 
-## Fase 6 — Página pública `/p/[token]`
+## Fase 6 — Página pública `/p/[token]` ✅
+
+> Feito: página do cliente com aceite, recusa e pedido de ajuste por código no e-mail, trilha
+> completa, estados do link, limite de taxa e cabeçalhos de segurança. Decisões D61–D70.
 
 > Ao implementar (Fase 5 deixou pronto): validar o formato com `tokenValido` antes de qualquer
 > consulta; buscar por `token_hash = hashToken(HASH_PEPPER, token)` com a service_role; mesma
@@ -146,6 +149,13 @@ Mais simples e sempre correto.
 - Estados: link inválido, expirado, já respondida, cancelada.
 
 ## Fase 7 — Comprovante
+
+> Ao implementar (a Fase 6 deixou pronto): `aceites.pdf_path` já é gravado no aceite
+> (`<prestador_id>/<aceite_id>.pdf`); gerar o PDF logo depois do `status = ok` em
+> `responderProposta` (lib/publico/actions.ts, há um comentário marcando o lugar), sem bloquear a
+> resposta ao cliente se o PDF ou o e-mail falharem (o aceite já vale); `MensagemEmail.anexos` já
+> existe; "Baixar comprovante" na tela de sucesso e no detalhe; `/verificar` reutiliza
+> `hashConfere` (lib/crypto/hash.ts).
 
 - **`@react-pdf/renderer`** (escolha): o PDF é escrito em JSX com flexbox, igual ao resto do app,
   então fica fácil de manter e explicar; o `pdf-lib` exigiria posicionar texto por coordenadas.

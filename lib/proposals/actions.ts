@@ -1,9 +1,6 @@
 "use server";
 
-import { isIP } from "node:net";
-
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -11,6 +8,7 @@ import { requirePrestador } from "@/lib/auth/dal";
 import type { FormState } from "@/lib/auth/actions";
 import type { SaveResult } from "@/lib/autosave";
 import { gerarToken, hashToken } from "@/lib/crypto/token";
+import { origemDaRequisicao } from "@/lib/http/origem";
 import { publicEnv } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";
 import { conteudoVazio, normalizarConteudo } from "@/lib/proposals/draft";
@@ -238,16 +236,6 @@ export type EnvioResultado =
   | { ok: false; message: string; erros?: Record<string, string> };
 
 const FALHA_ENVIO = "Não conseguimos enviar agora. Seus dados continuam aqui, tente de novo.";
-
-/** IP e dispositivo de quem está agindo, para a trilha de auditoria. Nunca vão para o console. */
-async function origemDaRequisicao() {
-  const h = await headers();
-  const encaminhado = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return {
-    ip: encaminhado && isIP(encaminhado) ? encaminhado : undefined,
-    userAgent: h.get("user-agent")?.slice(0, 512) || undefined,
-  };
-}
 
 /** O link da proposta. O token só existe aqui, na memória, e na resposta que o entrega ao prestador. */
 function montarLink(token: string) {

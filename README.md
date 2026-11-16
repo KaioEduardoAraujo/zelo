@@ -42,8 +42,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 3 | Design system e shell do app (desktop e celular) | ✅ Concluída |
 | 4 | Propostas: listagem, assistente de criação, rascunho, versões | ✅ Concluída |
 | 5 | Envio: hash da versão, token do link, WhatsApp | ✅ Concluída |
-| 6 | Página pública do cliente com aceite por código (OTP) | ⏳ Próxima |
-| 7 | PDF comprovante, e-mail e verificação de integridade | Planejada |
+| 6 | Página pública do cliente com aceite por código (OTP) | ✅ Concluída |
+| 7 | PDF comprovante, e-mail e verificação de integridade | ⏳ Próxima |
 | 8 | Aditivo e aceite de entrega (com fotos) | Planejada |
 | 9 | Painel do administrador | Planejada |
 | 10 | Qualidade, CI, deploy na Vercel | Planejada |
@@ -78,8 +78,12 @@ só no código da aplicação:
   servidor revalida tudo e o detalhe da proposta recalcula o hash para provar que nada mudou.
 - **Cliente sem conta acessa só pelo servidor:** o link carrega um token aleatório de 32 bytes, e o
   banco guarda apenas o hash dele.
-- **Código por e-mail (OTP):** 6 dígitos, guardado como HMAC-SHA256, expira em 10 minutos, com no
-  máximo 5 tentativas e limite de reenvio.
+- **Código por e-mail (OTP):** 6 dígitos, guardado como HMAC-SHA256 amarrado à proposta e à ação
+  (um código pedido para recusar não serve para aceitar), expira em 10 minutos, com no máximo 5
+  tentativas, 3 códigos por hora e uso único.
+- **Página do cliente protegida:** link inválido, inexistente ou substituído dão a mesma resposta;
+  a URL com o token não vaza por referrer, não fica em cache e não é indexada; a abertura só é
+  registrada pelo navegador de verdade (a prévia de link do WhatsApp não marca "visualizada").
 - **Autorização em três camadas:** o `proxy.ts` redireciona quem não está logado, a camada de acesso
   a dados (`lib/auth/dal.ts`) confere papel e conta suspensa no servidor, e o banco aplica o RLS.
 - **Outros cuidados:** Zod em toda entrada, proteção contra redirecionamento aberto, mensagens de
@@ -196,4 +200,6 @@ CLAUDE.md                resumo técnico e registro de decisões
   demonstrações com clientes reais, use o provedor SMTP (Gmail com senha de app).
 - O plano gratuito do Supabase pausa o projeto após cerca de 7 dias sem uso. Um agendamento no
   GitHub Actions para evitar isso está previsto na Fase 10.
+- O IP gravado na trilha vem do cabeçalho `x-forwarded-for`, que só é confiável hospedado na
+  Vercel. Fora dela, o limite de taxa por IP deixa de valer (o limite por proposta continua).
 - Sem modo escuro e sem contas com vários usuários por empresa no MVP.

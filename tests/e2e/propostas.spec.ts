@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { criarConta, entrar, semRolagemHorizontal, semearProposta, service } from "./support";
+import {
+  criarConta,
+  entrar,
+  esperarAssistentePronto,
+  semRolagemHorizontal,
+  semearProposta,
+  service,
+} from "./support";
 
 /** Entra e espera o painel abrir (o redirecionamento do login é assíncrono). */
 async function login(page: Page, conta: { email: string; password: string }) {
@@ -43,6 +50,7 @@ test.describe("assistente de proposta", () => {
     // Autosave: salva sozinho e sobrevive a um recarregamento
     await expect(salvo(page)).toBeVisible({ timeout: 20_000 });
     await page.reload();
+    await esperarAssistentePronto(page);
     await expect(page.getByLabel("O que será feito")).toHaveValue(/pintura da laje/);
     await expect(page.getByLabel("Descrição").last()).toHaveValue("Pintura da laje");
 
@@ -136,6 +144,7 @@ test.describe("assistente de proposta", () => {
     await login(page, conta);
 
     await page.goto(`/propostas/${id}/editar?etapa=2`);
+    await esperarAssistentePronto(page);
     const escopo = page.getByLabel("O que será feito");
     await expect(escopo).toHaveValue(/Troca da tela/);
 
@@ -151,6 +160,7 @@ test.describe("assistente de proposta", () => {
     await expect(salvo(page)).toBeVisible({ timeout: 20_000 });
 
     await page.reload();
+    await esperarAssistentePronto(page);
     await expect(page.getByLabel("O que será feito")).toHaveValue(
       "Escopo digitado sem conexão, que não pode se perder.",
     );
@@ -175,6 +185,7 @@ test.describe("assistente de proposta", () => {
     await login(page, conta);
 
     await page.goto(`/propostas/${id}/editar?etapa=2`);
+    await esperarAssistentePronto(page);
     const botao = page.getByRole("button", { name: "Ver como o cliente verá" });
 
     if (isMobile) {
@@ -204,6 +215,7 @@ test.describe("assistente de proposta", () => {
 
     for (const etapa of [1, 2, 3, 4]) {
       await page.goto(`/propostas/${id}/editar?etapa=${etapa}`);
+      await esperarAssistentePronto(page);
       await expect(page.getByRole("heading", { level: 2 }).first()).toBeAttached();
       await semRolagemHorizontal(page);
     }
@@ -512,6 +524,7 @@ test.describe("unidade do item", () => {
     const { id } = await semearProposta(conta.id);
     await login(page, conta);
     await page.goto(`/propostas/${id}/editar?etapa=2`);
+    await esperarAssistentePronto(page);
 
     const unidadeNoBanco = async () => {
       const { data } = await service
@@ -549,10 +562,12 @@ test.describe("unidade do item", () => {
 
     // "Outra…": texto livre, que também é gravado e continua aparecendo depois de recarregar
     await page.goto(`/propostas/${id}/editar?etapa=2`);
+    await esperarAssistentePronto(page);
     await page.getByLabel("Unidade").selectOption("Outra…");
     await page.getByLabel("Unidade").fill("visita");
     await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe("visita");
     await page.reload();
+    await esperarAssistentePronto(page);
     await expect(page.getByLabel("Unidade")).toHaveValue("visita");
 
     // E dá para voltar para a lista
