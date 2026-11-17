@@ -166,7 +166,7 @@ Mais simples e sempre correto.
 - `/verificar`: código do comprovante (+ upload opcional do PDF) → recalcula o hash da versão e
   compara → "Documento íntegro" ou "Não encontrado".
 
-## Fase 8 — Aditivo e aceite de entrega
+## Fase 8 — Aditivo e aceite de entrega ✅
 
 - "Novo aditivo" numa proposta aceita (`tipo = aditivo`, `proposta_pai_id`), assistente curto.
 - "Aceite de entrega": checklist + até N fotos (bucket `entregas`, compressão no navegador,

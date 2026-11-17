@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 import { gerarToken, hashToken } from "@/lib/crypto/token";
 import { prepararDocumento } from "@/lib/proposals/envio";
@@ -266,7 +266,43 @@ export async function zerarLimitesDeTaxa() {
  * da hidratação: interagir antes disso perde o clique, num teste ou num celular lento.
  */
 export async function esperarAssistentePronto(page: Page) {
-  await expect(page.getByRole("button", { name: /^(Continuar|Enviar proposta)$/ })).toBeEnabled({
+  await expect(
+    page.getByRole("button", {
+      name: /^(Continuar|Enviar proposta|Enviar aditivo|Enviar entrega)$/,
+    }),
+  ).toBeEnabled({
     timeout: 30_000,
   });
 }
+
+/** Pede o código na folha e devolve o código lido no e-mail (Mailpit). */
+export async function pedirCodigo(folha: Locator, email: string, emailsAntes = 0): Promise<string> {
+  await folha.getByRole("button", { name: "Enviar código" }).click();
+  await expect(folha.getByText(/Enviamos um código para/)).toBeVisible({ timeout: 20_000 });
+  let assunto = "";
+  await expect
+    .poll(
+      async () => {
+        const r = await fetch(
+          `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+        );
+        const json = (await r.json()) as {
+          messages: { Subject: string }[];
+          messages_count: number;
+        };
+        assunto = json.messages[0]?.Subject ?? "";
+        return json.messages_count;
+      },
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(emailsAntes);
+  expect(assunto).toMatch(/^\d{6} é o seu código no Zelo$/);
+  return assunto.slice(0, 6);
+}
+
+export async function digitarEConfirmar(folha: Locator, codigo: string, botao: string) {
+  await folha.getByLabel("Código de 6 números").fill(codigo);
+  await folha.getByRole("button", { name: botao }).click();
+}
+
+export const outroCodigo = (c: string) => (c === "000000" ? "111111" : "000000");

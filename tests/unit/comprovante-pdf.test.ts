@@ -50,6 +50,7 @@ export const dadosExemplo: ComprovanteProps["dados"] = {
     validade_dias: 15,
     observacoes: "Ação começa após a aprovação. Emoji não suportado vira caractere vazio: 👍",
   },
+  entrega: null,
   integro: true,
   eventos: [
     { tipo: "enviada", criadoEm: "2026-11-15T12:00:00.000Z", ip: null, userAgent: null },
@@ -73,5 +74,83 @@ describe("comprovante em PDF", () => {
     expect(pdf.length).toBeGreaterThan(5_000);
     // Para olhar o resultado: PDF_SAIDA=/caminho/arquivo.pdf npm test -- comprovante
     if (process.env.PDF_SAIDA) writeFileSync(process.env.PDF_SAIDA, pdf);
+  }, 30_000);
+
+  it("aditivo: mostra a referência à proposta original", async () => {
+    const pdf = await renderizarComprovante({
+      dados: {
+        ...dadosExemplo,
+        proposta: { ...dadosExemplo.proposta, tipo: "aditivo" },
+        partes: {
+          ...dadosExemplo.partes,
+          titulo: "Aditivo: Reforma do banheiro",
+          referencia: {
+            proposta_id: "4432da9c-0efd-4576-8807-500c3dbcac20",
+            titulo: "Reforma do banheiro",
+            hash_documento: "f".repeat(64),
+          },
+        },
+      },
+      urlVerificacao: "http://localhost:3000/verificar",
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    if (process.env.PDF_ADITIVO) writeFileSync(process.env.PDF_ADITIVO, pdf);
+  }, 30_000);
+
+  it("entrega: checklist e fotos (imagem embutida e imagem não incluída)", async () => {
+    // PNG 1×1 válido; o PDF aceita JPEG e PNG.
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const pai = "11111111-1111-4111-8111-111111111111";
+    const prop = "22222222-2222-4222-8222-222222222222";
+    const f1 = `${pai}/${prop}/33333333-3333-4333-8333-333333333333.png`;
+    const f2 = `${pai}/${prop}/44444444-4444-4444-8444-444444444444.webp`;
+    const pdf = await renderizarComprovante({
+      dados: {
+        ...dadosExemplo,
+        proposta: { ...dadosExemplo.proposta, id: prop, prestadorId: pai, tipo: "entrega" },
+        partes: {
+          ...dadosExemplo.partes,
+          titulo: "Entrega: Reforma do banheiro",
+          referencia: {
+            proposta_id: "4432da9c-0efd-4576-8807-500c3dbcac20",
+            titulo: "Reforma do banheiro",
+            hash_documento: "f".repeat(64),
+          },
+        },
+        entrega: {
+          resumo: "Piso e revestimento concluídos; rejunte e limpeza final feitos (≈ 6 m²).",
+          checklist: [
+            { texto: "Piso assentado", feito: true },
+            { texto: "Revestimento das paredes", feito: true },
+          ],
+          fotos: [
+            {
+              path: f1,
+              nome: "banheiro.png",
+              sha256: "a".repeat(64),
+              bytes: png.length,
+              tipo: "image/png",
+            },
+            {
+              path: f2,
+              nome: "detalhe.webp",
+              sha256: "b".repeat(64),
+              bytes: 999,
+              tipo: "image/webp",
+            },
+          ],
+          observacoes: "Cliente acompanhou a entrega.",
+          validade_dias: 15,
+        },
+      },
+      imagens: { [f1]: { data: png, formato: "png" } },
+      urlVerificacao: "http://localhost:3000/verificar",
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(5_000);
+    if (process.env.PDF_ENTREGA) writeFileSync(process.env.PDF_ENTREGA, pdf);
   }, 30_000);
 });

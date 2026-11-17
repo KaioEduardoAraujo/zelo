@@ -8,11 +8,13 @@ import { RegistrarAbertura } from "@/components/publico/registrar-abertura";
 import { RespostaCliente } from "@/components/publico/resposta-cliente";
 import { AcceptanceStamp } from "@/components/zelo/acceptance-stamp";
 import { FormMessage } from "@/components/zelo/form-message";
+import { EntregaDocument } from "@/components/zelo/proposal/entrega-document";
 import { ProposalDocument } from "@/components/zelo/proposal/proposal-document";
 import { formatDateTime, maskCpf, maskEmail } from "@/lib/format";
 import { urlWhatsApp } from "@/lib/proposals/envio";
 import { textoConsentimento } from "@/lib/publico/consentimento";
 import { carregarPropostaPublica, type PropostaPublica } from "@/lib/publico/queries";
+import { textosDe } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 
 // Nunca indexar: o link é pessoal. (Cabeçalhos no next.config.ts reforçam: no-referrer, no-store.)
@@ -29,12 +31,14 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
   if (!proposta) notFound(); // inválido, inexistente ou substituído: a mesma resposta
 
   const prestador = proposta.prestadorDocumento.empresa || proposta.prestadorDocumento.nome;
-  const aberta = proposta.estado === "aberta" && proposta.conteudo !== null;
+  const T = textosDe(proposta.tipo);
+  const temDocumento = proposta.conteudo !== null || proposta.entrega !== null;
+  const aberta = proposta.estado === "aberta" && temDocumento;
 
   const duvidasHref = proposta.contato.telefone
     ? urlWhatsApp(
         proposta.contato.telefone,
-        `Olá! Tenho uma dúvida sobre a proposta “${proposta.titulo}”.`,
+        `Olá! Tenho uma dúvida sobre ${T.artigo} “${proposta.titulo}”.`,
       )
     : proposta.contato.email
       ? `mailto:${proposta.contato.email}?subject=${encodeURIComponent(`Dúvida sobre a proposta “${proposta.titulo}”`)}`
@@ -42,7 +46,7 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
 
   return (
     <div className="min-h-dvh">
-      <CabecalhoPublico nome={prestador} />
+      <CabecalhoPublico nome={prestador} enviadaVia={T.enviadaVia} />
 
       <main
         className={cn(
@@ -50,22 +54,43 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
           aberta ? "pb-36" : "pb-12",
         )}
       >
-        <h1 className="sr-only">Proposta de {prestador}</h1>
+        <h1 className="sr-only">
+          {T.rotulo} de {prestador}
+        </h1>
         <Situacao proposta={proposta} prestador={prestador} token={token} />
 
-        {proposta.conteudo && (
+        {temDocumento && (
           <>
-            <ProposalDocument
-              titulo={proposta.titulo}
-              prestador={proposta.prestadorDocumento}
-              clienteNome={proposta.cliente.nome}
-              conteudo={proposta.conteudo}
-              validade={
-                proposta.validadeEm
-                  ? { ate: proposta.validadeEm }
-                  : { dias: proposta.conteudo.validade_dias }
-              }
-            />
+            {proposta.entrega ? (
+              <EntregaDocument
+                titulo={proposta.titulo}
+                prestador={proposta.prestadorDocumento}
+                clienteNome={proposta.cliente.nome}
+                referenciaTitulo={proposta.referenciaTitulo}
+                conteudo={proposta.entrega}
+                fotoUrls={proposta.fotoUrls}
+                validade={
+                  proposta.validadeEm
+                    ? { ate: proposta.validadeEm }
+                    : { dias: proposta.entrega.validade_dias }
+                }
+              />
+            ) : (
+              proposta.conteudo && (
+                <ProposalDocument
+                  titulo={proposta.titulo}
+                  prestador={proposta.prestadorDocumento}
+                  clienteNome={proposta.cliente.nome}
+                  conteudo={proposta.conteudo}
+                  referenciaTitulo={proposta.tipo === "aditivo" ? proposta.referenciaTitulo : null}
+                  validade={
+                    proposta.validadeEm
+                      ? { ate: proposta.validadeEm }
+                      : { dias: proposta.conteudo.validade_dias }
+                  }
+                />
+              )
+            )}
 
             {proposta.hash && (
               <section aria-labelledby="integridade" className="mt-4 px-1">
@@ -85,11 +110,12 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
           </>
         )}
 
-        {aberta && proposta.conteudo ? (
+        {aberta ? (
           <RespostaCliente
             token={token}
             titulo={proposta.titulo}
-            valorCentavos={proposta.conteudo.valor_total_centavos}
+            tipo={proposta.tipo}
+            valorCentavos={proposta.conteudo?.valor_total_centavos ?? null}
             prestadorNome={prestador}
             clienteNome={proposta.cliente.nome}
             emailMascarado={maskEmail(proposta.cliente.email)}
@@ -117,7 +143,12 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
 }
 
 function consentimentoBase(p: PropostaPublica, prestador: string) {
-  return { titulo: p.titulo, prestador, valorCentavos: p.conteudo?.valor_total_centavos ?? 0 };
+  return {
+    titulo: p.titulo,
+    prestador,
+    tipo: p.tipo,
+    valorCentavos: p.conteudo?.valor_total_centavos ?? null,
+  };
 }
 
 /** Faixa no topo com a situação da proposta, quando ela não está mais aberta para resposta. */
@@ -131,11 +162,13 @@ function Situacao({
   token: string;
 }) {
   const r = proposta.resposta;
+  const T = textosDe(proposta.tipo);
+  const Este = T.este.charAt(0).toUpperCase() + T.este.slice(1);
 
   switch (proposta.estado) {
     case "aceita":
       return r ? (
-        <section aria-label="Aceite registrado" className="mb-5 flex flex-col gap-3">
+        <section aria-label={T.registrado.aceito} className="mb-5 flex flex-col gap-3">
           <AcceptanceStamp
             size="lg"
             acceptedAt={formatDateTime(r.criadoEm)}
@@ -143,7 +176,7 @@ function Situacao({
             className="self-start"
           />
           <p className="text-support text-slate-600">
-            Aceita por {r.clienteNome}
+            {T.aceitaPor} {r.clienteNome}
             {r.cpf ? ` (CPF ${maskCpf(r.cpf)})` : ""}. Guarde o comprovante.
           </p>
           {r.resultado === "aceito" && (
@@ -160,7 +193,8 @@ function Situacao({
     case "recusada":
       return (
         <FormMessage tone="info" className="mb-5">
-          Você recusou esta proposta{r ? ` em ${formatDateTime(r.criadoEm)}` : ""}.
+          Você recusou {T.este}
+          {r ? ` em ${formatDateTime(r.criadoEm)}` : ""}.
           {r?.comentario ? ` Motivo: “${r.comentario}”` : ""}
         </FormMessage>
       );
@@ -168,22 +202,24 @@ function Situacao({
       return (
         <FormMessage tone="info" className="mb-5">
           Você pediu ajuste{r ? ` em ${formatDateTime(r.criadoEm)}` : ""}
-          {r?.comentario ? `: “${r.comentario}”` : ""}. {prestador} pode enviar uma nova versão da
-          proposta.
+          {r?.comentario ? `: “${r.comentario}”` : ""}. {prestador} pode enviar uma nova versão{" "}
+          {T.de}.
         </FormMessage>
       );
     case "expirada":
       return (
         <FormMessage tone="error" className="mb-5">
-          Esta proposta venceu
+          {Este} venceu
           {proposta.validadeEm ? ` em ${formatDateTime(proposta.validadeEm)}` : ""} e não pode mais
-          ser aceita. Se ainda tiver interesse, fale com {prestador}.
+          ser {T.aceitaAdj}. Se ainda tiver interesse, fale com {prestador}.
         </FormMessage>
       );
     case "em_atualizacao":
       return (
         <section className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
-          <h2 className="text-h2 text-navy-950">Esta proposta está sendo atualizada</h2>
+          <h2 className="text-h2 text-navy-950">
+            {Este} está sendo {T.atualizadaAdj}
+          </h2>
           <p className="mt-2 text-slate-600">
             {prestador} está preparando uma nova versão. Quando ela estiver pronta, você recebe um
             novo link.

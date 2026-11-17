@@ -3,6 +3,8 @@ export type SnapshotDocumento = {
   titulo: string;
   prestador: { nome: string; empresa: string | null };
   cliente: { nome: string; email: string; telefone: string | null };
+  /** Só em aditivo e entrega: a proposta aceita a que o documento se refere (selada no hash). */
+  referencia?: { proposta_id: string; titulo: string; hash_documento: string };
 };
 
 const ehObjeto = (v: unknown): v is Record<string, unknown> =>
@@ -13,7 +15,17 @@ const textoOuNulo = (v: unknown) => (typeof v === "string" && v !== "" ? v : nul
 /** Extrai o retrato das partes do jsonb bruto de uma versão enviada (null se não houver). */
 export function lerSnapshot(bruto: unknown): SnapshotDocumento | null {
   if (!ehObjeto(bruto) || !ehObjeto(bruto.prestador) || !ehObjeto(bruto.cliente)) return null;
+  const ref = ehObjeto(bruto.referencia) ? bruto.referencia : null;
   return {
+    ...(ref && texto(ref.proposta_id) && texto(ref.hash_documento)
+      ? {
+          referencia: {
+            proposta_id: texto(ref.proposta_id),
+            titulo: texto(ref.titulo),
+            hash_documento: texto(ref.hash_documento),
+          },
+        }
+      : {}),
     titulo: texto(bruto.titulo),
     prestador: { nome: texto(bruto.prestador.nome), empresa: textoOuNulo(bruto.prestador.empresa) },
     cliente: {

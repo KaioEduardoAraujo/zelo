@@ -9,6 +9,7 @@ import { FormField } from "@/components/zelo/form-field";
 import { FormMessage } from "@/components/zelo/form-message";
 import { formatDateTime } from "@/lib/format";
 import { useHidratado } from "@/lib/hooks/use-hidratado";
+import { textosDe } from "@/lib/tipos";
 import { verificarComprovante, type VerificacaoResultado } from "@/lib/verificar/actions";
 
 const RESULTADO = {
@@ -160,6 +161,7 @@ function Resultado({ r }: { r: VerificacaoResultado }) {
       </div>
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Dado rotulo="Documento">{textosDe(r.tipo).rotulo}</Dado>
         <Dado rotulo="Registro">{RESULTADO[r.resultado]}</Dado>
         <Dado rotulo="Data e hora (Brasília)">{formatDateTime(r.registradoEm)}</Dado>
         <Dado rotulo="Prestador">{r.prestador}</Dado>

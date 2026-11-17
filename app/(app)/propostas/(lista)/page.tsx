@@ -24,6 +24,7 @@ import { formatCentavos, formatRelative } from "@/lib/format";
 import { lerFiltros, urlListagem, type FiltrosListagem } from "@/lib/proposals/search";
 import { listarPropostas, temPropostas } from "@/lib/proposals/queries";
 import { STATUS, STATUS_ORDER } from "@/lib/status";
+import { textosDe } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Propostas" };
@@ -180,6 +181,11 @@ function TabelaPropostas({ itens }: { itens: ProposalSummary[] }) {
               >
                 {p.titulo}
               </Link>
+              {p.tipo && p.tipo !== "proposta" && (
+                <span className="mt-0.5 block text-label text-slate-600">
+                  {textosDe(p.tipo).rotulo}
+                </span>
+              )}
             </TableCell>
             <TableCell>
               <StatusBadge status={p.status} />

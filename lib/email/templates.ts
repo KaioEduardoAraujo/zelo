@@ -1,5 +1,6 @@
 import { formatDateTime } from "@/lib/format";
 import type { AcaoCliente } from "@/lib/publico/otp";
+import { textosDe, type TipoDocumento } from "@/lib/tipos";
 
 /*
  * Templates de e-mail. Título da proposta e nome do prestador são digitados por usuários:
@@ -15,12 +16,6 @@ export function escapeHtml(texto: string): string {
     .replace(/'/g, "&#39;");
 }
 
-const PARA_QUE: Record<AcaoCliente, (titulo: string) => string> = {
-  aceito: (t) => `aceitar a proposta “${t}”`,
-  recusado: (t) => `recusar a proposta “${t}”`,
-  ajuste: (t) => `pedir ajuste na proposta “${t}”`,
-};
-
 export type EmailMontado = { assunto: string; html: string; texto: string };
 
 export function emailCodigo(p: {
@@ -29,8 +24,10 @@ export function emailCodigo(p: {
   titulo: string;
   prestador: string;
   minutos: number;
+  /** Proposta se omitido. */
+  tipo?: TipoDocumento;
 }): EmailMontado {
-  const frase = PARA_QUE[p.acao](p.titulo);
+  const frase = `${textosDe(p.tipo).paraCodigo[p.acao]} “${p.titulo}”`;
 
   const texto = [
     `Seu código para ${frase}, de ${p.prestador}:`,
@@ -64,6 +61,8 @@ export function emailCodigo(p: {
  */
 export function emailComprovante(p: {
   para: "cliente" | "prestador";
+  /** Proposta se omitido. */
+  tipo?: TipoDocumento;
   titulo: string;
   prestador: string;
   clienteNome: string;
@@ -72,11 +71,12 @@ export function emailComprovante(p: {
   urlVerificacao: string;
   urlPainel: string;
 }): EmailMontado {
+  const T = textosDe(p.tipo);
   const quando = formatDateTime(p.registradoEm);
   const abertura =
     p.para === "cliente"
-      ? `Você aceitou a proposta “${p.titulo}”, de ${p.prestador}, em ${quando}.`
-      : `${p.clienteNome} aceitou a proposta “${p.titulo}” em ${quando}.`;
+      ? `${T.acaoPositiva.cliente} “${p.titulo}”, de ${p.prestador}, em ${quando}.`
+      : `${p.clienteNome} ${T.acaoPositiva.prestador} “${p.titulo}” em ${quando}.`;
   const verificar = `${p.urlVerificacao}?codigo=${encodeURIComponent(p.codigo)}`;
 
   const texto = [
@@ -99,7 +99,7 @@ export function emailComprovante(p: {
   <body style="margin:0;padding:24px;background:#F1F5F5;font-family:Arial,Helvetica,sans-serif;color:#12263A">
     <table role="presentation" width="100%" style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #DCE5E6;border-radius:12px">
       <tr><td style="padding:28px 24px">
-        <p style="margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#1F7A70">Aceite registrado</p>
+        <p style="margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#1F7A70">${escapeHtml(T.registrado.aceito)}</p>
         <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#12263A">${escapeHtml(abertura)}</p>
         <p style="margin:0 0 4px;font-size:13px;color:#52667A">Código do comprovante</p>
         <p style="margin:0 0 16px;font-family:'Courier New',monospace;font-size:20px;font-weight:700;letter-spacing:2px;color:#12263A">${escapeHtml(p.codigo)}</p>
@@ -113,8 +113,8 @@ export function emailComprovante(p: {
 
   const assunto =
     p.para === "cliente"
-      ? `Comprovante do seu aceite: ${p.titulo}`
-      : `Proposta aceita: ${p.titulo}`;
+      ? `${T.assuntoCliente}: ${p.titulo}`
+      : `${T.assuntoPrestador}: ${p.titulo}`;
 
   return { assunto, html, texto };
 }

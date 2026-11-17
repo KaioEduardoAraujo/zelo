@@ -8,6 +8,8 @@ import type { AuditEvent } from "@/components/zelo/audit-timeline";
 import { hashConfere as confereHash } from "@/lib/crypto/hash";
 import { atencao, type Attention } from "@/lib/proposals/attention";
 import { normalizarConteudo } from "@/lib/proposals/draft";
+import type { TipoDocumento } from "@/lib/tipos";
+import { normalizarEntrega, type ConteudoEntrega } from "@/lib/validation/entrega";
 import { lerSnapshot, type SnapshotDocumento } from "@/lib/proposals/snapshot";
 import { PAGE_SIZE, type FiltrosListagem } from "@/lib/proposals/search";
 import type { EventoTipo, PropostaStatus } from "@/lib/status";
@@ -21,10 +23,11 @@ import type { ConteudoRascunho } from "@/lib/validation/proposta";
  */
 
 const LISTA_COLUNAS =
-  "id, titulo, cliente_nome, status_efetivo, valor_total_centavos, atualizado_em, validade_em";
+  "id, tipo, titulo, cliente_nome, status_efetivo, valor_total_centavos, atualizado_em, validade_em";
 
 type LinhaLista = {
   id: string | null;
+  tipo: TipoDocumento | null;
   titulo: string | null;
   cliente_nome: string | null;
   status_efetivo: PropostaStatus | null;
@@ -36,6 +39,7 @@ type LinhaLista = {
 function paraResumo(l: LinhaLista): ProposalSummary {
   return {
     id: l.id ?? "",
+    tipo: l.tipo ?? "proposta",
     titulo: l.titulo ?? "",
     clienteNome: l.cliente_nome ?? "",
     valorCentavos: l.valor_total_centavos === null ? null : Number(l.valor_total_centavos),
@@ -151,6 +155,8 @@ export type VersaoDetalhe = {
   hashSha256: string | null;
   enviadaEm: string | null;
   criadoEm: string;
+  /** Só em entrega: o conteúdo no formato de entrega (checklist e fotos). */
+  entrega: ConteudoEntrega | null;
   /** Só versões enviadas têm. Mostra as partes como eram no envio. */
   snapshot: SnapshotDocumento | null;
   /**
@@ -160,8 +166,20 @@ export type VersaoDetalhe = {
   hashConfere: boolean | null;
 };
 
+export type Derivado = {
+  id: string;
+  tipo: TipoDocumento;
+  titulo: string;
+  status: PropostaStatus;
+};
+
 export type PropostaDetalhe = {
   id: string;
+  tipo: TipoDocumento;
+  /** Aditivo e entrega: a proposta aceita de onde nasceram. */
+  pai: { id: string; titulo: string } | null;
+  /** Proposta aceita: os aditivos e entregas criados a partir dela. */
+  derivados: Derivado[];
   titulo: string;
   clienteNome: string;
   clienteEmail: string;
@@ -182,7 +200,7 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
   if (!idSchema.safeParse(id).success) notFound();
   const supabase = await createClient();
 
-  const [proposta, versoes, eventos, aceite] = await Promise.all([
+  const [proposta, versoes, eventos, aceite, filhos] = await Promise.all([
     supabase.from("propostas_situacao").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("proposta_versoes")
@@ -204,13 +222,35 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
       .order("criado_em", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("propostas_situacao")
+      .select("id, tipo, titulo, status_efetivo")
+      .eq("proposta_pai_id", id)
+      .order("criado_em", { ascending: true }),
   ]);
 
   const p = proposta.data;
   if (!p || !p.id) notFound(); // RLS: proposta de outro prestador aparece como inexistente
 
+  const { data: pai } = p.proposta_pai_id
+    ? await supabase
+        .from("propostas")
+        .select("id, titulo")
+        .eq("id", p.proposta_pai_id)
+        .maybeSingle()
+    : { data: null };
+  const tipo: TipoDocumento = p.tipo ?? "proposta";
+
   return {
     id: p.id,
+    tipo,
+    pai: pai ? { id: pai.id, titulo: pai.titulo } : null,
+    derivados: (filhos.data ?? []).map((f) => ({
+      id: f.id ?? "",
+      tipo: f.tipo ?? "aditivo",
+      titulo: f.titulo ?? "",
+      status: f.status_efetivo ?? "rascunho",
+    })),
     titulo: p.titulo ?? "",
     clienteNome: p.cliente_nome ?? "",
     clienteEmail: p.cliente_email ?? "",
@@ -223,7 +263,8 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
     versoes: (versoes.data ?? []).map((v) => ({
       id: v.id,
       numero: v.numero,
-      conteudo: normalizarConteudo(v.conteudo),
+      conteudo: normalizarConteudo(tipo === "entrega" ? null : v.conteudo),
+      entrega: tipo === "entrega" ? normalizarEntrega(v.conteudo) : null,
       hashSha256: v.hash_sha256,
       enviadaEm: v.enviada_em,
       criadoEm: v.criado_em,

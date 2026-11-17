@@ -1,10 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   criarConta,
+  digitarEConfirmar,
+  outroCodigo,
+  pedirCodigo,
   emailsPara,
   entrar,
   novoEmail,
@@ -47,38 +50,6 @@ async function tiposDeEvento(id: string) {
     .order("criado_em");
   return (data ?? []).map((e) => e.tipo);
 }
-
-/** Pede o código na folha e devolve o código lido no e-mail (Mailpit). */
-async function pedirCodigo(folha: Locator, email: string, emailsAntes = 0): Promise<string> {
-  await folha.getByRole("button", { name: "Enviar código" }).click();
-  await expect(folha.getByText(/Enviamos um código para/)).toBeVisible({ timeout: 20_000 });
-  let assunto = "";
-  await expect
-    .poll(
-      async () => {
-        const r = await fetch(
-          `http://127.0.0.1:54324/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
-        );
-        const json = (await r.json()) as {
-          messages: { Subject: string }[];
-          messages_count: number;
-        };
-        assunto = json.messages[0]?.Subject ?? "";
-        return json.messages_count;
-      },
-      { timeout: 15_000 },
-    )
-    .toBeGreaterThan(emailsAntes);
-  expect(assunto).toMatch(/^\d{6} é o seu código no Zelo$/);
-  return assunto.slice(0, 6);
-}
-
-async function digitarEConfirmar(folha: Locator, codigo: string, botao: string) {
-  await folha.getByLabel("Código de 6 números").fill(codigo);
-  await folha.getByRole("button", { name: botao }).click();
-}
-
-const outroCodigo = (c: string) => (c === "000000" ? "111111" : "000000");
 
 test.describe("o cliente responde pelo link", () => {
   test("abre, lê, erra o código uma vez e aceita; o prestador vê o aceite", async ({

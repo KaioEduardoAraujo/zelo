@@ -12,6 +12,8 @@ type ProposalDocumentProps = {
   conteudo: ConteudoRascunho;
   /** Rascunho: "Válida por N dias depois do envio". Enviada: a data em que vence. */
   validade: { dias: number } | { ate: string };
+  /** Aditivo: título da proposta aceita a que ele se refere. */
+  referenciaTitulo?: string | null;
   className?: string;
 };
 
@@ -26,6 +28,7 @@ export function ProposalDocument({
   clienteNome,
   conteudo,
   validade,
+  referenciaTitulo,
   className,
 }: ProposalDocumentProps) {
   const total = conteudo.valor_total_centavos;
@@ -51,6 +54,11 @@ export function ProposalDocument({
         <p className="mt-1 text-support text-slate-600">
           Para {clienteNome || <Pendente>nome do cliente</Pendente>}
         </p>
+        {referenciaTitulo && (
+          <p className="mt-2 text-support text-slate-600">
+            Aditivo à proposta <span className="font-semibold">“{referenciaTitulo}”</span>
+          </p>
+        )}
       </header>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-4 border-b border-line bg-surface-2 px-4 py-4 md:px-6">

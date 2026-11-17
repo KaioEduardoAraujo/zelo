@@ -2,6 +2,7 @@ import "server-only";
 
 import { hashConfere } from "@/lib/crypto/hash";
 import { normalizarConteudo } from "@/lib/proposals/draft";
+import { normalizarEntrega, type ConteudoEntrega } from "@/lib/validation/entrega";
 import { lerSnapshot, type SnapshotDocumento } from "@/lib/proposals/snapshot";
 import type { EventoTipo } from "@/lib/status";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -40,7 +41,10 @@ export type DadosComprovante = {
   versao: { id: string; numero: number; enviadaEm: string | null; hash: string };
   /** Retrato das partes no envio (D24). */
   partes: SnapshotDocumento;
+  /** Proposta e aditivo. Em entrega vem vazio (veja `entrega`). */
   conteudo: ConteudoRascunho;
+  /** Só em entrega. */
+  entrega: ConteudoEntrega | null;
   /** O hash recalculado agora, a partir do conteúdo guardado, bate com o gravado? */
   integro: boolean;
   /** Trilha até o momento do aceite (inclusive). Eventos posteriores não entram no PDF. */
@@ -107,7 +111,8 @@ export async function carregarDadosComprovante(aceiteId: string): Promise<DadosC
     proposta: { id: p.id, prestadorId: p.prestador_id, tipo: p.tipo },
     versao: { id: v.id, numero: v.numero, enviadaEm: v.enviada_em, hash: v.hash_sha256 },
     partes,
-    conteudo: normalizarConteudo(v.conteudo),
+    conteudo: normalizarConteudo(p.tipo === "entrega" ? null : v.conteudo),
+    entrega: p.tipo === "entrega" ? normalizarEntrega(v.conteudo) : null,
     integro: hashConfere(v.conteudo, v.hash_sha256) && a.hash_documento === v.hash_sha256,
     eventos: (eventos ?? []).map((e) => ({
       tipo: e.tipo as EventoTipo,

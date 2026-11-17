@@ -197,6 +197,14 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D73 | `garantirComprovante` é **idempotente**: o download (cliente `/p/[token]/comprovante`, prestador `/propostas/[id]/comprovante`) gera o PDF se ainda não existir; corrida resolvida pelo `upsert: false`. Download = redirect 303 para URL assinada de **60 s** com nome `comprovante-ZL-….pdf` | Botão "Baixar" logo após o aceite sempre funciona; o arquivo é um só (e-mail, download e bucket) |
 | D74 | O PDF mostra a trilha **até o aceite** (eventos com `criado_em <= aceite`), CPF e e-mail mascarados, IP e dispositivo resumido, texto de consentimento, hash e o endereço de `/verificar` | Documento estável: eventos posteriores (pdf_gerado) não mudam o que foi provado |
 | D75 | `/verificar`: código (normalizado; aceita minúsculas e sem traços) → recalcula o hash da versão e compara com o da versão e do aceite → "Documento íntegro"/"Não encontrado". Mostra só resultado, data, prestador, versão e hash (**nada do cliente**). PDF opcional: o SHA-256 é calculado **no navegador** e comparado ao do arquivo guardado. Limite 20/10 min por IP | LGPD; o arquivo não sai do aparelho; código de 32⁸ combinações + limite impede varredura |
+| D76 | Aditivo e entrega **reutilizam** envio, página do cliente, OTP, aceite, PDF e `/verificar`. Só os **textos** variam, centralizados em `lib/tipos.ts` (`TEXTOS[tipo]`); os da proposta são exatamente os da Fase 6. Nenhuma migration nova | Sem `if (tipo)` espalhado; sem telas duplicadas (D4) |
+| D77 | Aditivo: "Novo aditivo" (só na proposta **aceita**) cria rascunho com `tipo = aditivo`, `proposta_pai_id`, cliente copiado, título "Aditivo: …" e pagamento/garantia/validade da original; usa o **mesmo assistente** (etapas 2–4). O documento selado leva `referencia = {proposta_id, titulo, hash_documento}` da versão aceita, **dentro do hash** | O comprovante do aditivo prova a qual versão exata da proposta ele se refere |
+| D78 | Entrega: conteúdo próprio `{resumo, checklist[{texto, feito}], fotos[], observacoes?, validade_dias}` (`lib/validation/entrega.ts`), editor de **uma tela** (`entrega-editor.tsx`) com autosave. Checklist nasce dos itens da proposta, **sem marcar**; para enviar, todo item precisa estar marcado ou removido (entrega parcial = remover o que falta). Sem valor: não entra no painel (D45) | Checklist só vale o que foi de fato entregue |
+| D79 | Fotos: até **6**, comprimidas **no navegador** (JPEG, lado maior 1600 px, ≤ 2 MB) e enviadas direto ao bucket privado `entregas` em `<prestador_id>/<proposta_id>/<uuid>.jpg` (a policy do bucket já restringe à pasta do dono e não deixa trocar nem apagar). O rascunho guarda só `{path, nome}`; o servidor valida o caminho a cada salvamento | Celular tem foto grande e rede ruim; o RLS é a barreira de verdade |
+| D80 | No **envio**, `selarFotos` (servidor) baixa cada foto com a sessão do prestador, confere o **tipo pelos primeiros bytes** (não a extensão), o tamanho e grava o **SHA-256** dos bytes no documento selado: o hash da versão cobre as fotos (trocar uma foto muda o hash) | Prova do que foi mostrado ao cliente |
+| D81 | URLs assinadas das fotos (1 h; `lib/entregas/urls.ts`) só são geradas para caminhos da pasta **deste prestador e desta entrega**; na página do cliente isso vale com a service_role | Um caminho forjado no jsonb não pode expor o arquivo de outra pessoa |
+| D82 | PDF da entrega: resumo, checklist e fotos **embutidas** (só JPEG/PNG cujo SHA-256 bate com o selo; WebP só aparece na lista, com o hash), cada foto com o seu SHA-256. Bytes das imagens ficam fora de `dados` (passam por `imagens`) porque `dados` é sanitizado | O PDF nunca mostra imagem diferente da coberta pelo hash |
+| D83 | Nova versão de entrega copia o conteúdo **sem o selo** das fotos (`semSelo`); o envio recalcula tudo. Foto removida do rascunho **permanece** no bucket (sem DELETE para o prestador, e pode estar citada por uma versão enviada) — limitação conhecida, a registrar no README (Fase 10) | Prova não some; limpeza de órfãs fica para depois |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -228,6 +236,12 @@ lib/email/                interface + resend.ts + smtp.ts + templates.ts
 lib/http/origem.ts        IP e dispositivo da requisição (server-only)
 lib/crypto/               canonical.ts (JSON canônico), hash.ts (SHA-256, HMAC, comparação em tempo constante), token.ts (token do link)
 lib/proposals/envio.ts    prepararDocumento (documento selado), mensagem e link do WhatsApp
+lib/proposals/derivados.ts   criar aditivo/entrega e autosave da entrega (Server Actions)
+lib/proposals/documento-servidor.ts   monta o documento a selar por tipo (lê a referência; sela as fotos)
+lib/entregas/             envio.ts (documento selado da entrega), fotos.ts (SHA-256 das fotos), urls.ts (URLs assinadas)
+lib/validation/entrega.ts conteúdo da entrega, caminho/tipo das fotos
+lib/imagem.ts             compressão de fotos no navegador
+lib/tipos.ts              textos por tipo (proposta | aditivo | entrega)
 lib/unidades.ts           unidades de medida dos itens
 app/not-found.tsx, app/error.tsx   404 e erro em português
 app/dev/componentes/      vitrine do design system (só em desenvolvimento)

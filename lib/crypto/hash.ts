@@ -7,6 +7,11 @@ export function sha256Hex(texto: string): string {
   return createHash("sha256").update(texto, "utf8").digest("hex");
 }
 
+/** SHA-256 em hexadecimal dos BYTES de um arquivo (fotos da entrega). */
+export function sha256Bytes(dados: Uint8Array): string {
+  return createHash("sha256").update(dados).digest("hex");
+}
+
 /** Hash do documento: SHA-256 da serialização canônica. É o que fica na versão, no aceite e no PDF. */
 export function hashDocumento(documento: unknown): string {
   return sha256Hex(canonicalize(documento));

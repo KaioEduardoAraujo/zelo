@@ -52,9 +52,14 @@ import {
   type SalvarRascunhoEntrada,
 } from "@/lib/proposals/actions";
 import type { ResumoEnvio } from "@/lib/proposals/envio";
+import { textosDe, type TipoDocumento } from "@/lib/tipos";
 import { totalCentavos } from "@/lib/validation/proposta";
 
 type WizardProps = {
+  /** Proposta ou aditivo (a entrega tem editor próprio). Muda só os textos. */
+  tipo: TipoDocumento;
+  /** Aditivo: título da proposta aceita de onde nasceu. */
+  referenciaTitulo: string | null;
   propostaId: string;
   inicial: DraftForm;
   etapaInicial: Etapa;
@@ -68,7 +73,15 @@ type WizardProps = {
  *
  * Cada alteração agenda um autosave (debounce de 1,5 s). O avanço de etapa é validado.
  */
-export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }: WizardProps) {
+export function ProposalWizard({
+  tipo,
+  referenciaTitulo,
+  propostaId,
+  inicial,
+  etapaInicial,
+  prestador,
+}: WizardProps) {
+  const T = textosDe(tipo);
   const router = useRouter();
   const [form, setForm] = useState(inicial);
   const formRef = useRef(inicial); // valor mais recente, para handlers que rodam em sequência
@@ -269,6 +282,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
       clienteNome={form.clienteNome}
       conteudo={documento}
       validade={{ dias: documento.validade_dias }}
+      referenciaTitulo={referenciaTitulo}
     />
   );
 
@@ -281,13 +295,13 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
         <div className="flex items-start gap-3">
           <CircleCheck className="mt-1.5 size-7 shrink-0 text-teal-600" aria-hidden="true" />
           <h1 ref={tituloEnvioRef} tabIndex={-1} className="text-h1 text-navy-950 outline-none">
-            Proposta criada
+            {T.criada}
           </h1>
         </div>
         <LinkEnvio resumo={enviado} />
         <div className="flex flex-wrap gap-3">
           <Button asChild variant="secondary">
-            <Link href={`/propostas/${propostaId}`}>Ver proposta</Link>
+            <Link href={`/propostas/${propostaId}`}>Ver {T.nome}</Link>
           </Button>
           <Button asChild variant="ghost">
             <Link href="/propostas">Voltar para propostas</Link>
@@ -311,7 +325,12 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
           <SaveIndicator state={state} onRetry={() => void flush()} />
         </div>
 
-        <h1 className="sr-only">Proposta em edição</h1>
+        <h1 className="sr-only">{T.emEdicao}</h1>
+        {referenciaTitulo && (
+          <p className="-mt-2 text-support text-slate-600">
+            Aditivo à proposta “{referenciaTitulo}”
+          </p>
+        )}
         <Stepper atual={etapa} onIr={irPara} />
 
         <div className={ultima ? "" : "grid gap-8 xl:grid-cols-[minmax(0,1fr)_26rem]"}>
@@ -373,7 +392,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
                 disabled={!hidratado || finalizando || enviando}
                 className="flex-[2] sm:min-w-44 sm:flex-none"
               >
-                {ultima ? "Enviar proposta" : "Continuar"}
+                {ultima ? T.enviarBotao : "Continuar"}
               </Button>
             </div>
           </form>
@@ -410,7 +429,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enviar esta proposta?</DialogTitle>
+            <DialogTitle>{T.confirmarEnvioTitulo}</DialogTitle>
             <DialogDescription>
               Depois de enviada, esta versão não pode mais ser editada. Para mudar algo, você cria
               uma nova versão, e a anterior continua guardada com o seu hash.
@@ -424,7 +443,7 @@ export function ProposalWizard({ propostaId, inicial, etapaInicial, prestador }:
               </Button>
             </DialogClose>
             <Button onClick={() => void enviar()} disabled={enviando}>
-              {enviando ? "Enviando…" : "Enviar proposta"}
+              {enviando ? "Enviando…" : T.enviarBotao}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -162,6 +162,7 @@ describe("mensagemWhatsApp", () => {
     clienteNome: "Mariana Costa",
     prestadorNome: "Andrade Reformas",
     titulo: "Reforma do banheiro",
+    tipo: "proposta" as const,
     valorCentavos: 513_000,
     link: "https://zelo.example/p/ABC",
     validadeEm: "2026-12-01T16:12:00Z",

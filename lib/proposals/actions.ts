@@ -12,7 +12,9 @@ import { origemDaRequisicao } from "@/lib/http/origem";
 import { publicEnv } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";
 import { conteudoVazio, normalizarConteudo } from "@/lib/proposals/draft";
-import { prepararDocumento, type ResumoEnvio } from "@/lib/proposals/envio";
+import { prepararParaEnvio, valorDaVersao } from "@/lib/proposals/documento-servidor";
+import type { ResumoEnvio } from "@/lib/proposals/envio";
+import { normalizarEntrega, semSelo } from "@/lib/validation/entrega";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, phoneSchema } from "@/lib/validation/auth";
@@ -184,7 +186,7 @@ export async function criarNovaVersao(propostaId: string): Promise<void> {
   const supabase = await createClient();
   const { data: proposta } = await supabase
     .from("propostas")
-    .select("id, status, versao_atual")
+    .select("id, tipo, status, versao_atual")
     .eq("id", propostaId)
     .maybeSingle();
   if (!proposta) redirect("/propostas");
@@ -202,7 +204,10 @@ export async function criarNovaVersao(propostaId: string): Promise<void> {
   const { error } = await supabase.from("proposta_versoes").insert({
     proposta_id: propostaId,
     numero: proposta.versao_atual + 1, // o banco recalcula: este valor é só ilustrativo
-    conteudo: normalizarConteudo(atual?.conteudo),
+    // Entrega tem outro formato de conteúdo; as fotos perdem o selo (o envio seguinte recalcula).
+    conteudo: (proposta.tipo === "entrega"
+      ? semSelo(normalizarEntrega(atual?.conteudo))
+      : normalizarConteudo(atual?.conteudo)) as unknown as NonNullable<Json>,
   });
   if (error) redirect(`/propostas/${propostaId}?erro=nova-versao`);
 
@@ -258,7 +263,9 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
   const supabase = await createClient();
   const { data: proposta } = await supabase
     .from("propostas")
-    .select("id, titulo, cliente_nome, cliente_email, cliente_telefone, status, versao_atual")
+    .select(
+      "id, tipo, proposta_pai_id, titulo, cliente_nome, cliente_email, cliente_telefone, status, versao_atual",
+    )
     .eq("id", propostaId)
     .maybeSingle();
   if (!proposta) return { ok: false, message: "Não encontramos esta proposta." };
@@ -277,21 +284,11 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
     .maybeSingle();
   if (!versao) return { ok: false, message: FALHA_ENVIO };
 
-  const preparado = prepararDocumento({
-    propostaId,
-    versao: proposta.versao_atual,
-    titulo: proposta.titulo,
-    clienteNome: proposta.cliente_nome,
-    clienteEmail: proposta.cliente_email,
-    clienteTelefone: proposta.cliente_telefone,
-    prestadorNome: profile.nome,
-    prestadorEmpresa: profile.empresa_nome,
-    conteudo: versao.conteudo,
-  });
+  const preparado = await prepararParaEnvio(supabase, profile, proposta, versao.conteudo);
   if (!preparado.ok) {
     return {
       ok: false,
-      message: "Falta preencher alguns campos antes de enviar.",
+      message: preparado.message ?? "Falta preencher alguns campos antes de enviar.",
       erros: preparado.erros,
     };
   }
@@ -331,11 +328,12 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
       hash: preparado.hash,
       link: montarLink(token),
       validadeEm: data.r_validade_em,
+      tipo: proposta.tipo,
       titulo: preparado.documento.titulo,
-      clienteNome: preparado.documento.cliente.nome,
-      clienteTelefone: preparado.documento.cliente.telefone,
+      clienteNome: proposta.cliente_nome,
+      clienteTelefone: proposta.cliente_telefone,
       prestadorNome: profile.empresa_nome || profile.nome,
-      valorCentavos: preparado.documento.valor_total_centavos,
+      valorCentavos: preparado.valorCentavos,
     },
   };
 }
@@ -353,7 +351,7 @@ export async function gerarNovoLink(propostaId: string): Promise<EnvioResultado>
   const supabase = await createClient();
   const { data: proposta } = await supabase
     .from("propostas")
-    .select("id, titulo, cliente_nome, cliente_telefone, status, versao_atual")
+    .select("id, tipo, titulo, cliente_nome, cliente_telefone, status, versao_atual")
     .eq("id", propostaId)
     .maybeSingle();
   if (!proposta) return { ok: false, message: "Não encontramos esta proposta." };
@@ -400,11 +398,12 @@ export async function gerarNovoLink(propostaId: string): Promise<EnvioResultado>
       hash: versao.hash_sha256,
       link: montarLink(token),
       validadeEm: data.r_validade_em,
+      tipo: proposta.tipo,
       titulo: proposta.titulo,
       clienteNome: proposta.cliente_nome,
       clienteTelefone: proposta.cliente_telefone,
       prestadorNome: profile.empresa_nome || profile.nome,
-      valorCentavos: normalizarConteudo(versao.conteudo).valor_total_centavos,
+      valorCentavos: valorDaVersao(proposta.tipo, versao.conteudo),
     },
   };
 }

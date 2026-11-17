@@ -7,6 +7,7 @@ import { origemDaRequisicao } from "@/lib/http/origem";
 import { lerSnapshot } from "@/lib/proposals/snapshot";
 import { dentroDoLimite } from "@/lib/publico/limites";
 import { createServiceClient } from "@/lib/supabase/service";
+import type { TipoDocumento } from "@/lib/tipos";
 import { verificacaoSchema } from "@/lib/verificar/schemas";
 
 /*
@@ -26,6 +27,8 @@ export type EstadoArquivo = "confere" | "diferente" | "sem_original" | "nao_envi
 export type VerificacaoResultado =
   | {
       estado: "integro" | "divergente";
+      /** Proposta, aditivo ou entrega. */
+      tipo: TipoDocumento;
       resultado: "aceito" | "recusado" | "ajuste";
       registradoEm: string;
       prestador: string;
@@ -62,10 +65,15 @@ export async function verificarComprovante(entrada: unknown): Promise<Verificaca
 
   const { data: v } = await svc
     .from("proposta_versoes")
-    .select("numero, conteudo, hash_sha256")
+    .select("proposta_id, numero, conteudo, hash_sha256")
     .eq("id", a.versao_id)
     .single();
   if (!v?.hash_sha256) return { estado: "nao_encontrado" };
+  const { data: proposta } = await svc
+    .from("propostas")
+    .select("tipo")
+    .eq("id", v.proposta_id)
+    .single();
 
   const integro = hashConfere(v.conteudo, v.hash_sha256) && iguais(a.hash_documento, v.hash_sha256);
   const snapshot = lerSnapshot(v.conteudo);
@@ -86,6 +94,7 @@ export async function verificarComprovante(entrada: unknown): Promise<Verificaca
 
   return {
     estado: integro ? "integro" : "divergente",
+    tipo: proposta?.tipo ?? "proposta",
     resultado: a.resultado,
     registradoEm: a.criado_em,
     prestador: snapshot ? snapshot.prestador.empresa || snapshot.prestador.nome : "—",

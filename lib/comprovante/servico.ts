@@ -1,11 +1,13 @@
 import "server-only";
 
 import { carregarDadosComprovante, type DadosComprovante } from "@/lib/comprovante/dados";
+import { sha256Bytes } from "@/lib/crypto/hash";
 import { enviarEmail } from "@/lib/email";
 import { emailComprovante } from "@/lib/email/templates";
 import { publicEnv } from "@/lib/env";
-import { renderizarComprovante } from "@/lib/pdf/comprovante";
+import { renderizarComprovante, type ImagensPdf } from "@/lib/pdf/comprovante";
 import { createServiceClient } from "@/lib/supabase/service";
+import { caminhoFotoValido } from "@/lib/validation/entrega";
 
 /*
  * Ciclo do comprovante: gerar o PDF, guardar no bucket privado `comprovantes` e mandar por
@@ -30,6 +32,26 @@ async function baixarGuardado(caminho: string): Promise<Buffer | null> {
   return data ? Buffer.from(await data.arrayBuffer()) : null;
 }
 
+/**
+ * Baixa as fotos de uma entrega para embutir no PDF. Só entram JPEG e PNG (o react-pdf não desenha
+ * WebP; essas aparecem só na lista, com o hash) e só se o SHA-256 dos bytes bater com o que foi
+ * selado no envio: o PDF nunca mostra uma imagem diferente da que o hash do documento cobre.
+ */
+async function carregarImagens(dados: DadosComprovante): Promise<ImagensPdf> {
+  const imagens: ImagensPdf = {};
+  const bucket = createServiceClient().storage.from("entregas");
+  for (const f of dados.entrega?.fotos ?? []) {
+    if (!f.sha256 || (f.tipo !== "image/jpeg" && f.tipo !== "image/png")) continue;
+    if (!caminhoFotoValido(f.path, dados.proposta.prestadorId, dados.proposta.id)) continue;
+    const { data } = await bucket.download(f.path);
+    if (!data) continue;
+    const bytes = Buffer.from(await data.arrayBuffer());
+    if (sha256Bytes(bytes) !== f.sha256) continue;
+    imagens[f.path] = { data: bytes, formato: f.tipo === "image/png" ? "png" : "jpg" };
+  }
+  return imagens;
+}
+
 /** Devolve o PDF do aceite (gerando e guardando, se ainda não existir). Só aceites com pdf_path. */
 export async function garantirComprovante(aceiteId: string): Promise<Garantido | null> {
   const dados = await carregarDadosComprovante(aceiteId);
@@ -39,7 +61,11 @@ export async function garantirComprovante(aceiteId: string): Promise<Garantido |
   const guardado = await baixarGuardado(caminho);
   if (guardado) return { pdf: guardado, dados, caminho };
 
-  const pdf = await renderizarComprovante({ dados, urlVerificacao: urlVerificacao() });
+  const pdf = await renderizarComprovante({
+    dados,
+    urlVerificacao: urlVerificacao(),
+    imagens: await carregarImagens(dados),
+  });
 
   const svc = createServiceClient();
   // upsert: false → o arquivo nunca é sobrescrito. Se duas gerações correrem ao mesmo tempo, a
@@ -106,6 +132,7 @@ export async function processarAceite(aceiteId: string): Promise<void> {
   const { dados, pdf } = garantido;
   const anexo = { nome: nomeArquivo(dados.aceite.codigo), conteudo: pdf, tipo: "application/pdf" };
   const base = {
+    tipo: dados.proposta.tipo,
     titulo: dados.partes.titulo,
     prestador: dados.partes.prestador.empresa || dados.partes.prestador.nome,
     clienteNome: dados.partes.cliente.nome,

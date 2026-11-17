@@ -67,7 +67,7 @@ export async function enviarCodigo(
   }
 
   const proposta = await carregarPropostaPublica(token);
-  if (!proposta || proposta.estado !== "aberta" || !proposta.conteudo) {
+  if (!proposta || proposta.estado !== "aberta" || !(proposta.conteudo || proposta.entrega)) {
     return { ok: false, message: INDISPONIVEL, indisponivel: true };
   }
 
@@ -104,6 +104,7 @@ export async function enviarCodigo(
         titulo: proposta.titulo,
         prestador: prestadorDoDocumento(proposta),
         minutos: MINUTOS_CODIGO,
+        tipo: proposta.tipo,
       }),
     });
   } catch {
@@ -165,7 +166,7 @@ export async function responderProposta(
     };
 
   const proposta = await carregarPropostaPublica(token);
-  if (!proposta || proposta.estado !== "aberta" || !proposta.conteudo) {
+  if (!proposta || proposta.estado !== "aberta" || !(proposta.conteudo || proposta.entrega)) {
     return { ok: false, message: INDISPONIVEL, indisponivel: true };
   }
 
@@ -181,7 +182,8 @@ export async function responderProposta(
       p_texto_consentimento: textoConsentimento(acao, {
         titulo: proposta.titulo,
         prestador: prestadorDoDocumento(proposta),
-        valorCentavos: proposta.conteudo.valor_total_centavos,
+        valorCentavos: proposta.conteudo?.valor_total_centavos ?? null,
+        tipo: proposta.tipo,
       }),
       p_ip: (origem.ip ?? null) as string,
       p_user_agent: (origem.userAgent ?? null) as string,

@@ -4,6 +4,7 @@ import {
   Circle,
   Document,
   Font,
+  Image,
   Page,
   Path,
   StyleSheet,
@@ -19,6 +20,7 @@ import { formatDecimal } from "@/lib/masks";
 import { EVENTO } from "@/lib/status";
 import { summarizeUserAgent } from "@/lib/user-agent";
 import { sanitizarParaPdf } from "@/lib/pdf/texto";
+import { textosDe } from "@/lib/tipos";
 import { totalItemCentavos } from "@/lib/validation/proposta";
 
 /*
@@ -163,6 +165,11 @@ const s = StyleSheet.create({
     borderColor: COR.line,
   },
   hash: { fontFamily: "JetBrains Mono", fontSize: 8, color: COR.navy800 },
+  fotos: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
+  foto: { width: "50%", paddingRight: 8, marginBottom: 8 },
+  fotoImagem: { width: "100%", height: 130, objectFit: "cover", borderRadius: 4 },
+  fotoSem: { alignItems: "center", justifyContent: "center", backgroundColor: COR.surface2 },
+  hashFoto: { fontFamily: "JetBrains Mono", fontSize: 5.5, color: COR.slate600 },
   tabela: { borderWidth: 1, borderColor: COR.line, borderRadius: 6 },
   linhaTabela: { flexDirection: "row", borderTopWidth: 1, borderTopColor: COR.line },
   cabecalhoTabela: { flexDirection: "row", backgroundColor: COR.surface2 },
@@ -184,20 +191,19 @@ const s = StyleSheet.create({
 
 const COLUNAS = { data: "19%", evento: "31%", ip: "20%", dispositivo: "30%" } as const;
 
-const TITULO: Record<DadosComprovante["proposta"]["tipo"], string> = {
-  proposta: "Comprovante de aceite",
-  aditivo: "Comprovante de aceite de aditivo",
-  entrega: "Comprovante de aceite de entrega",
-};
-
 const RESULTADO: Record<DadosComprovante["aceite"]["resultado"], string> = {
   aceito: "Aceito",
   recusado: "Recusado",
   ajuste: "Ajuste solicitado",
 };
 
+/** Fotos da entrega já baixadas (só JPEG e PNG: o react-pdf não desenha WebP), por caminho. */
+export type ImagensPdf = Record<string, { data: Buffer; formato: "jpg" | "png" }>;
+
 export type ComprovanteProps = {
   dados: Omit<DadosComprovante, "prestadorEmail">;
+  /** Bytes das fotos de uma entrega. Ficam FORA de `dados` porque o texto de `dados` é sanitizado. */
+  imagens?: ImagensPdf;
   /** Endereço da página pública de verificação, ex.: https://zelo.app/verificar */
   urlVerificacao: string;
 };
@@ -256,8 +262,9 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
-export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
-  const { aceite, partes, conteudo, versao, eventos } = dados;
+export function ComprovantePdf({ dados, urlVerificacao, imagens = {} }: ComprovanteProps) {
+  const { aceite, partes, conteudo, versao, eventos, entrega } = dados;
+  const T = textosDe(dados.proposta.tipo);
   const prestador = partes.prestador.empresa
     ? `${partes.prestador.empresa} (${partes.prestador.nome})`
     : partes.prestador.nome;
@@ -265,7 +272,7 @@ export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
 
   return (
     <Document
-      title={`${TITULO[dados.proposta.tipo]} ${aceite.codigo}`}
+      title={`${T.tituloPdf} ${aceite.codigo}`}
       author="Zelo"
       subject={partes.titulo}
       creator="Zelo"
@@ -283,7 +290,7 @@ export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
             </View>
           </View>
           <View style={s.topoDireita}>
-            <Text style={s.rotulo}>{TITULO[dados.proposta.tipo]}</Text>
+            <Text style={s.rotulo}>{T.tituloPdf}</Text>
             <Text style={s.codigo}>{aceite.codigo}</Text>
           </View>
         </View>
@@ -294,7 +301,7 @@ export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
           <View style={{ flex: 1 }}>
             <Text style={s.seloTitulo}>
               {aceite.resultado === "aceito"
-                ? "Aceite registrado"
+                ? T.registrado.aceito
                 : `Resposta registrada: ${RESULTADO[aceite.resultado]}`}
             </Text>
             <Text>
@@ -312,70 +319,31 @@ export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
           </View>
         </Secao>
 
-        <Secao titulo="Documento aceito">
+        <Secao titulo={entrega ? "Entrega confirmada" : "Documento aceito"}>
           <View style={s.grade}>
             <Campo rotulo="Título" inteiro>
               {partes.titulo}
             </Campo>
+            {partes.referencia && (
+              <Campo rotulo="Refere-se à proposta" inteiro>
+                {`${partes.referencia.titulo} (hash ${partes.referencia.hash_documento.slice(0, 16)}…)`}
+              </Campo>
+            )}
             <Campo rotulo="Versão">{String(versao.numero)}</Campo>
             <Campo rotulo="Enviada em">
               {versao.enviadaEm ? formatDateTime(versao.enviadaEm) : "—"}
             </Campo>
-            <Campo rotulo="Prazo">{conteudo.prazo || "—"}</Campo>
-            <Campo rotulo="Valor total">{formatCentavos(conteudo.valor_total_centavos)}</Campo>
+            {!entrega && <Campo rotulo="Prazo">{conteudo.prazo || "—"}</Campo>}
+            {!entrega && (
+              <Campo rotulo="Valor total">{formatCentavos(conteudo.valor_total_centavos)}</Campo>
+            )}
           </View>
 
-          {conteudo.escopo ? (
-            <View style={{ marginTop: 2 }}>
-              <Text style={s.rotulo}>Escopo</Text>
-              <Text style={s.paragrafo}>{conteudo.escopo}</Text>
-            </View>
-          ) : null}
-
-          {conteudo.itens.length > 0 && (
-            <View style={{ marginTop: 6 }}>
-              <Text style={s.rotulo}>O que está incluso</Text>
-              {conteudo.itens.map((item, i) => (
-                <View key={i} style={s.item} wrap={false}>
-                  <View style={s.itemColuna}>
-                    <Text style={s.itemDescricao}>{item.descricao}</Text>
-                    <Text style={s.itemDetalhe}>
-                      {formatDecimal(item.quantidade)} {item.unidade} ×{" "}
-                      {formatCentavos(item.valor_unitario_centavos)}
-                    </Text>
-                  </View>
-                  <Text style={s.itemTotal}>{formatCentavos(totalItemCentavos(item))}</Text>
-                </View>
-              ))}
-              <View style={s.total} wrap={false}>
-                <Text>Total</Text>
-                <Text>{formatCentavos(conteudo.valor_total_centavos)}</Text>
-              </View>
-            </View>
+          {entrega ? (
+            <CorpoEntrega entrega={entrega} imagens={imagens} />
+          ) : (
+            <CorpoProposta conteudo={conteudo} />
           )}
-
-          {conteudo.exclusoes.length > 0 && (
-            <View style={s.exclusoes} wrap={false}>
-              <Text style={s.exclusoesTitulo}>Não está incluso</Text>
-              {conteudo.exclusoes.map((e, i) => (
-                <Text key={i}>• {e}</Text>
-              ))}
-            </View>
-          )}
-
-          <View style={[s.grade, { marginTop: 8 }]}>
-            <Campo rotulo="Pagamento" inteiro>
-              {conteudo.pagamento || "—"}
-            </Campo>
-            <Campo rotulo="Garantia" inteiro>
-              {conteudo.garantia || "—"}
-            </Campo>
-            {conteudo.observacoes ? (
-              <Campo rotulo="Observações" inteiro>
-                {conteudo.observacoes}
-              </Campo>
-            ) : null}
-          </View>
         </Secao>
 
         <Secao titulo="Registro da resposta">
@@ -449,10 +417,135 @@ export function ComprovantePdf({ dados, urlVerificacao }: ComprovanteProps) {
   );
 }
 
+/** Escopo, itens, exclusões, pagamento e garantia (proposta e aditivo). */
+function CorpoProposta({ conteudo }: { conteudo: DadosComprovante["conteudo"] }) {
+  return (
+    <>
+      {conteudo.escopo ? (
+        <View style={{ marginTop: 2 }}>
+          <Text style={s.rotulo}>Escopo</Text>
+          <Text style={s.paragrafo}>{conteudo.escopo}</Text>
+        </View>
+      ) : null}
+
+      {conteudo.itens.length > 0 && (
+        <View style={{ marginTop: 6 }}>
+          <Text style={s.rotulo}>O que está incluso</Text>
+          {conteudo.itens.map((item, i) => (
+            <View key={i} style={s.item} wrap={false}>
+              <View style={s.itemColuna}>
+                <Text style={s.itemDescricao}>{item.descricao}</Text>
+                <Text style={s.itemDetalhe}>
+                  {formatDecimal(item.quantidade)} {item.unidade} ×{" "}
+                  {formatCentavos(item.valor_unitario_centavos)}
+                </Text>
+              </View>
+              <Text style={s.itemTotal}>{formatCentavos(totalItemCentavos(item))}</Text>
+            </View>
+          ))}
+          <View style={s.total} wrap={false}>
+            <Text>Total</Text>
+            <Text>{formatCentavos(conteudo.valor_total_centavos)}</Text>
+          </View>
+        </View>
+      )}
+
+      {conteudo.exclusoes.length > 0 && (
+        <View style={s.exclusoes} wrap={false}>
+          <Text style={s.exclusoesTitulo}>Não está incluso</Text>
+          {conteudo.exclusoes.map((e, i) => (
+            <Text key={i}>• {e}</Text>
+          ))}
+        </View>
+      )}
+
+      <View style={[s.grade, { marginTop: 8 }]}>
+        <Campo rotulo="Pagamento" inteiro>
+          {conteudo.pagamento || "—"}
+        </Campo>
+        <Campo rotulo="Garantia" inteiro>
+          {conteudo.garantia || "—"}
+        </Campo>
+        {conteudo.observacoes ? (
+          <Campo rotulo="Observações" inteiro>
+            {conteudo.observacoes}
+          </Campo>
+        ) : null}
+      </View>
+    </>
+  );
+}
+
+/** Resumo, checklist e fotos da entrega. Cada foto leva o seu SHA-256 (o hash do documento cobre os bytes). */
+function CorpoEntrega({
+  entrega,
+  imagens,
+}: {
+  entrega: NonNullable<DadosComprovante["entrega"]>;
+  imagens: ImagensPdf;
+}) {
+  return (
+    <>
+      <View style={{ marginTop: 2 }}>
+        <Text style={s.rotulo}>O que foi entregue</Text>
+        <Text style={s.paragrafo}>{entrega.resumo}</Text>
+      </View>
+
+      <View style={{ marginTop: 6 }}>
+        <Text style={s.rotulo}>Checklist</Text>
+        {entrega.checklist.map((item, i) => (
+          <View key={i} style={s.item} wrap={false}>
+            <View style={s.itemColuna}>
+              <Text style={s.itemDescricao}>{item.texto}</Text>
+            </View>
+            <Text style={s.itemTotal}>{item.feito ? "Entregue" : "Pendente"}</Text>
+          </View>
+        ))}
+      </View>
+
+      {entrega.fotos.length > 0 && (
+        <View style={{ marginTop: 8 }}>
+          <Text style={s.rotulo}>{`Fotos (${entrega.fotos.length})`}</Text>
+          <View style={s.fotos}>
+            {entrega.fotos.map((f) => {
+              const img = imagens[f.path];
+              return (
+                <View key={f.path} style={s.foto} wrap={false}>
+                  {img ? (
+                    // <Image> do react-pdf (não é um <img> de HTML; PDF não tem atributo alt):
+                    // a legenda abaixo descreve a foto.
+                    // eslint-disable-next-line jsx-a11y/alt-text
+                    <Image src={{ data: img.data, format: img.formato }} style={s.fotoImagem} />
+                  ) : (
+                    <View style={[s.fotoImagem, s.fotoSem]}>
+                      <Text style={s.itemDetalhe}>Imagem não incluída neste PDF</Text>
+                    </View>
+                  )}
+                  <Text style={s.itemDetalhe}>{f.nome}</Text>
+                  {f.sha256 && <Text style={s.hashFoto}>{`SHA-256 ${f.sha256}`}</Text>}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {entrega.observacoes ? (
+        <View style={{ marginTop: 6 }}>
+          <Text style={s.rotulo}>Observações</Text>
+          <Text style={s.paragrafo}>{entrega.observacoes}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
 /** Gera o PDF em memória. Roda só no servidor (runtime Node). */
 export async function renderizarComprovante(props: ComprovanteProps): Promise<Buffer> {
   registrarFontes();
   // Textos digitados por pessoas podem ter caracteres que a fonte não desenha (lib/pdf/texto.ts).
   const dados = sanitizarParaPdf(props.dados);
-  return renderToBuffer(<ComprovantePdf dados={dados} urlVerificacao={props.urlVerificacao} />);
+  return renderToBuffer(
+    <ComprovantePdf dados={dados} urlVerificacao={props.urlVerificacao} imagens={props.imagens} />,
+  );
 }

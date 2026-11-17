@@ -2,7 +2,10 @@ import "server-only";
 
 import { hashToken, tokenValido } from "@/lib/crypto/token";
 import { serverEnv } from "@/lib/env.server";
+import { urlsDasFotos } from "@/lib/entregas/urls";
 import { normalizarConteudo } from "@/lib/proposals/draft";
+import type { TipoDocumento } from "@/lib/tipos";
+import { normalizarEntrega, type ConteudoEntrega } from "@/lib/validation/entrega";
 import { lerSnapshot } from "@/lib/proposals/snapshot";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ConteudoRascunho } from "@/lib/validation/proposta";
@@ -21,6 +24,7 @@ export type EstadoPublico =
 export type PropostaPublica = {
   /** Só para uso no servidor (ações). Nunca vai para um componente de cliente. */
   id: string;
+  tipo: TipoDocumento;
   estado: EstadoPublico;
   titulo: string;
   /** Como o prestador aparece no documento (retrato do envio). */
@@ -28,7 +32,14 @@ export type PropostaPublica = {
   /** Contato ATUAL do prestador, para "Tenho dúvidas". */
   contato: { nome: string; telefone: string | null; email: string };
   cliente: { nome: string; email: string };
+  /** Proposta e aditivo. Em entrega é null (veja `entrega`). */
   conteudo: ConteudoRascunho | null;
+  /** Só em entrega: checklist e fotos. */
+  entrega: ConteudoEntrega | null;
+  /** Caminho da foto → URL assinada (1 hora). Só em entrega. */
+  fotoUrls: Record<string, string>;
+  /** Aditivo e entrega: título da proposta aceita a que se referem. */
+  referenciaTitulo: string | null;
   hash: string | null;
   enviadaEm: string | null;
   validadeEm: string | null;
@@ -61,7 +72,7 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
   const { data: p } = await svc
     .from("propostas_situacao")
     .select(
-      "id, prestador_id, status, status_efetivo, versao_atual, validade_em, titulo, cliente_nome, cliente_email",
+      "id, tipo, prestador_id, status, status_efetivo, versao_atual, validade_em, titulo, cliente_nome, cliente_email",
     )
     .eq("token_hash", hashToken(serverEnv().HASH_PEPPER, token))
     .maybeSingle();
@@ -78,8 +89,10 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
     email: perfil?.email ?? "",
   };
 
+  const tipo: TipoDocumento = p.tipo ?? "proposta";
   const base = {
     id: p.id,
+    tipo,
     titulo: p.titulo ?? "",
     contato,
     cliente: { nome: p.cliente_nome ?? "", email: p.cliente_email ?? "" },
@@ -93,6 +106,9 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
       estado: "em_atualizacao",
       prestadorDocumento: { nome: perfil?.nome ?? "", empresa: perfil?.empresa_nome ?? null },
       conteudo: null,
+      entrega: null,
+      fotoUrls: {},
+      referenciaTitulo: null,
       hash: null,
       enviadaEm: null,
       resposta: null,
@@ -108,6 +124,7 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
   if (!v?.hash_sha256) return null;
 
   const snapshot = lerSnapshot(v.conteudo);
+  const entrega = tipo === "entrega" ? normalizarEntrega(v.conteudo) : null;
   const { data: a } = await svc
     .from("aceites")
     .select(
@@ -129,7 +146,11 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
     cliente: snapshot
       ? { nome: snapshot.cliente.nome, email: snapshot.cliente.email }
       : base.cliente,
-    conteudo: normalizarConteudo(v.conteudo),
+    conteudo: tipo === "entrega" ? null : normalizarConteudo(v.conteudo),
+    entrega,
+    // Service role: só assina fotos da pasta deste prestador e desta entrega (urlsDasFotos).
+    fotoUrls: entrega ? await urlsDasFotos(svc, entrega.fotos, p.prestador_id, p.id) : {},
+    referenciaTitulo: snapshot?.referencia?.titulo || null,
     hash: v.hash_sha256,
     enviadaEm: v.enviada_em,
     resposta: a

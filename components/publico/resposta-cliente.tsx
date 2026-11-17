@@ -25,12 +25,15 @@ import { useHidratado } from "@/lib/hooks/use-hidratado";
 import { enviarCodigo, responderProposta, type ResponderResultado } from "@/lib/publico/actions";
 import type { AcaoCliente } from "@/lib/publico/otp";
 import { respostaSchema } from "@/lib/publico/schemas";
+import { textosDe, type TipoDocumento } from "@/lib/tipos";
 import { flattenIssues } from "@/lib/validation/errors";
 
 type Props = {
   token: string;
   titulo: string;
-  valorCentavos: number;
+  tipo: TipoDocumento;
+  /** null na entrega (não tem valor). */
+  valorCentavos: number | null;
   prestadorNome: string;
   clienteNome: string;
   emailMascarado: string;
@@ -43,22 +46,6 @@ type Props = {
 type Etapa = "dados" | "codigo" | "concluido";
 type Sucesso = Extract<ResponderResultado, { ok: true }>;
 
-const TITULO: Record<AcaoCliente, string> = {
-  aceito: "Confirmar aceite",
-  recusado: "Recusar proposta",
-  ajuste: "Pedir ajuste",
-};
-const CONFIRMAR: Record<AcaoCliente, string> = {
-  aceito: "Confirmar aceite",
-  recusado: "Confirmar recusa",
-  ajuste: "Enviar pedido de ajuste",
-};
-const REGISTRADO: Record<AcaoCliente, string> = {
-  aceito: "Aceite registrado",
-  recusado: "Recusa registrada",
-  ajuste: "Pedido de ajuste registrado",
-};
-
 const SEGUNDOS_REENVIO = 60;
 const SEM_CONEXAO = "Não conseguimos falar com o servidor. Confira sua conexão e tente de novo.";
 
@@ -68,6 +55,7 @@ const SEM_CONEXAO = "Não conseguimos falar com o servidor. Confira sua conexão
  * Recusar e pedir ajuste usam o mesmo fluxo. Nada aqui é confiado: o servidor valida tudo de novo.
  */
 export function RespostaCliente(props: Props) {
+  const T = textosDe(props.tipo);
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [acao, setAcao] = useState<AcaoCliente>("aceito");
@@ -187,7 +175,10 @@ export function RespostaCliente(props: Props) {
     });
   }
 
-  const descricao = `${props.titulo} · ${formatCentavos(props.valorCentavos)}`;
+  const descricao =
+    props.valorCentavos === null
+      ? props.titulo
+      : `${props.titulo} · ${formatCentavos(props.valorCentavos)}`;
 
   return (
     <>
@@ -199,14 +190,15 @@ export function RespostaCliente(props: Props) {
           Não é bem isso?
         </h2>
         <p className="mt-1 text-support text-slate-600">
-          Você pode pedir um ajuste ou recusar. {props.prestadorNome} fica sabendo da sua resposta.
+          Você pode {T.ajuste.toLowerCase()} ou recusar. {props.prestadorNome} fica sabendo da sua
+          resposta.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="secondary" disabled={!hidratado} onClick={() => abrir("ajuste")}>
-            Pedir ajuste
+            {T.ajuste}
           </Button>
           <Button variant="ghost" disabled={!hidratado} onClick={() => abrir("recusado")}>
-            Recusar proposta
+            {T.recusar}
           </Button>
         </div>
       </section>
@@ -222,7 +214,7 @@ export function RespostaCliente(props: Props) {
             </Button>
           )}
           <Button className="flex-[1.4]" disabled={!hidratado} onClick={() => abrir("aceito")}>
-            Aceitar proposta
+            {T.principal}
           </Button>
         </div>
       </div>
@@ -232,7 +224,7 @@ export function RespostaCliente(props: Props) {
           {etapa === "concluido" && sucesso ? (
             <>
               <SheetHeader>
-                <SheetTitle>{REGISTRADO[sucesso.resultado]}</SheetTitle>
+                <SheetTitle>{T.registrado[sucesso.resultado]}</SheetTitle>
                 <SheetDescription>{descricao}</SheetDescription>
               </SheetHeader>
               <SheetBody className="flex flex-col gap-4">
@@ -246,7 +238,7 @@ export function RespostaCliente(props: Props) {
                       className="self-start"
                     />
                     <p className="text-body text-navy-900">
-                      Aceite registrado. Guarde o comprovante: enviamos uma cópia em PDF para{" "}
+                      {T.registrado.aceito}. Guarde o comprovante: enviamos uma cópia em PDF para{" "}
                       {props.emailMascarado}.
                     </p>
                   </>
@@ -254,7 +246,7 @@ export function RespostaCliente(props: Props) {
                   <FormMessage tone="success">
                     {sucesso.resultado === "recusado"
                       ? `A recusa foi registrada. ${props.prestadorNome} fica sabendo da sua resposta.`
-                      : `O pedido de ajuste foi registrado. ${props.prestadorNome} pode enviar uma nova versão da proposta.`}
+                      : `O pedido de ajuste foi registrado. ${props.prestadorNome} pode enviar uma nova versão d${props.tipo === "proposta" ? "a proposta" : props.tipo === "aditivo" ? "o aditivo" : "a entrega"}.`}
                   </FormMessage>
                 )}
                 {sucesso.resultado !== "aceito" && (
@@ -281,18 +273,18 @@ export function RespostaCliente(props: Props) {
                       </a>
                     </Button>
                     <Button variant="secondary" onClick={() => mudarAberto(false)}>
-                      Voltar para a proposta
+                      Voltar para {T.artigo}
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => mudarAberto(false)}>Voltar para a proposta</Button>
+                  <Button onClick={() => mudarAberto(false)}>Voltar para {T.artigo}</Button>
                 )}
               </SheetFooter>
             </>
           ) : (
             <>
               <SheetHeader>
-                <SheetTitle>{etapa === "codigo" ? "Digite o código" : TITULO[acao]}</SheetTitle>
+                <SheetTitle>{etapa === "codigo" ? "Digite o código" : T.folha[acao]}</SheetTitle>
                 <SheetDescription>{descricao}</SheetDescription>
               </SheetHeader>
 
@@ -434,7 +426,7 @@ export function RespostaCliente(props: Props) {
                   </Button>
                 ) : (
                   <Button onClick={confirmar} disabled={pendente}>
-                    {pendente ? "Confirmando…" : CONFIRMAR[acao]}
+                    {pendente ? "Confirmando…" : T.confirmar[acao]}
                   </Button>
                 )}
               </SheetFooter>
