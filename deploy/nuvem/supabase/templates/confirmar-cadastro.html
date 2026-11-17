@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+  <body
+    style="
+      margin: 0;
+      padding: 24px;
+      background: #f1f5f5;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #12263a;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      style="
+        max-width: 520px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid #dce5e6;
+        border-radius: 12px;
+      "
+    >
+      <tr>
+        <td style="padding: 28px 24px">
+          <p style="margin: 0 0 16px; font-size: 20px; font-weight: 700">
+            Confirme seu e-mail no Zelo
+          </p>
+          <p style="margin: 0 0 20px; font-size: 16px; line-height: 26px; color: #52667a">
+            Falta só um passo para começar a enviar propostas. Toque no botão abaixo para confirmar
+            este e-mail.
+          </p>
+          <a
+            href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/inicio"
+            style="
+              display: inline-block;
+              background: #1f7a70;
+              color: #ffffff;
+              text-decoration: none;
+              font-weight: 700;
+              font-size: 16px;
+              padding: 14px 22px;
+              border-radius: 8px;
+            "
+          >
+            Confirmar e-mail
+          </a>
+          <p style="margin: 24px 0 0; font-size: 14px; line-height: 20px; color: #52667a">
+            Não criou uma conta no Zelo? Ignore este e-mail.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

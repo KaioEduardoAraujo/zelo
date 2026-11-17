@@ -1,0 +1,40 @@
+# Configuração de Auth do Supabase NA NUVEM (projeto ovahgvavuyuvcxfztiub).
+# Só declara o que precisa mudar; o resto do projeto fica como está (`supabase config push`
+# deixa intocado o que o arquivo não declara). Não use este arquivo localmente.
+#
+#   SMTP_USER=... SMTP_PASSWORD=... npx supabase config diff --workdir deploy/nuvem --remote=ovahgvavuyuvcxfztiub
+#   (idem com `config push` para aplicar)
+#
+# As credenciais do SMTP vêm do ambiente (env(...)), nunca deste arquivo.
+project_id = "zelo"
+
+[auth]
+site_url = "https://zelo-propostas.vercel.app"
+additional_redirect_urls = ["https://zelo-propostas.vercel.app/**"]
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.email]
+# Decisão D27: sem confirmação de e-mail no cadastro (MVP).
+enable_confirmations = false
+
+# Os HTML em deploy/nuvem/supabase/templates são CÓPIAS de supabase/templates (a CLI não aceita
+# caminho fora desta pasta). Mudou um? Copie de novo antes do push.
+[auth.email.template.recovery]
+subject = "Crie uma nova senha no Zelo"
+content_path = "./supabase/templates/recuperar-senha.html"
+
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail no Zelo"
+content_path = "./supabase/templates/confirmar-cadastro.html"
+
+# SMTP próprio (Gmail com senha de app): o SMTP embutido do Supabase só entrega para a equipe
+# do projeto e tem limite de poucos e-mails por hora.
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 465
+user = "env(SMTP_USER)"
+pass = "env(SMTP_PASSWORD)"
+admin_email = "env(SMTP_USER)"
+sender_name = "Zelo"

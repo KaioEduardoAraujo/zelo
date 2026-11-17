@@ -19,6 +19,16 @@ O projeto `ovahgvavuyuvcxfztiub` já está ligado pela CLI e tem as migrations a
    npx supabase db advisors --remote         # deve sobrar só o aviso aceito na D33
    ```
 
+> **Atalho pela CLI (usado no deploy atual):** os passos 2 a 5 estão declarados em
+> `deploy/nuvem/supabase/config.toml` (sem segredos; o usuário e a senha do SMTP vêm do ambiente).
+> Para conferir e aplicar:
+>
+> ```bash
+> SMTP_USER=<gmail> SMTP_PASSWORD=<senha de app> \
+>   npx supabase config diff --workdir deploy/nuvem --remote=ovahgvavuyuvcxfztiub
+> # se a diferença estiver certa, troque `diff` por `push` (pede confirmação)
+> ```
+
 2. **Authentication → URL Configuration**
    - *Site URL*: `https://<seu-app>.vercel.app`
    - *Redirect URLs*: `https://<seu-app>.vercel.app/**`
