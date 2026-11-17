@@ -4,12 +4,6 @@ import Link from "next/link";
 import { Logo } from "@/components/zelo/logo";
 import { ReceiptPreview } from "@/components/zelo/receipt-preview";
 
-/*
- * Telas de acesso (DESIGN.md 7.2.1).
- * Desktop: formulário à esquerda; à direita, painel da marca com o símbolo grande recortado
- * e um comprovante de exemplo. O painel começa num corte diagonal — o motivo gráfico
- * derivado da diagonal do símbolo. Mobile: só o formulário, com a logo no topo.
- */
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">

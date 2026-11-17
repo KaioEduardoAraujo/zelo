@@ -1,9 +1,4 @@
--- =============================================================================
--- Zelo · Seed: 5 templates globais (dono_id nulo), um por nicho.
--- Valores em centavos. valor_total_centavos = soma dos itens (conferido pelo teste
--- tests/db/templates.test.ts com o mesmo schema Zod da aplicação).
--- O admin NÃO é criado aqui (a senha não pode ficar em SQL): use `npm run db:seed-admin`.
--- =============================================================================
+-- 5 modelos globais (dono_id nulo). O admin não é criado aqui: a senha não pode ficar em SQL.
 
 insert into public.templates (nicho, titulo, conteudo) values
 (

@@ -6,7 +6,7 @@ import { Logo } from "@/components/zelo/logo";
 
 export const metadata: Metadata = { title: "Página não encontrada" };
 
-/** 404 em português. Também é o que aparece para a proposta de OUTRO prestador (o RLS a esconde). */
+// Também aparece para a proposta de outro prestador (o RLS a esconde).
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">

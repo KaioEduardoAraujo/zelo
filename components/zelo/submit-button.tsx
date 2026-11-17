@@ -3,7 +3,6 @@ import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Botão de envio com estado de carregamento (feedback imediato, DESIGN.md 8). */
 export function SubmitButton({
   pending,
   children,

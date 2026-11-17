@@ -40,7 +40,6 @@ export function NovaPropostaForm({
   const tituloInicial =
     v.titulo ?? modelos.find((m) => m.id === (v.modelo ?? preselecionado))?.titulo ?? "";
   const [titulo, setTitulo] = useState(tituloInicial);
-  // Enquanto a pessoa não mexe no título, ele acompanha o modelo escolhido.
   const tituloEditado = useRef(v.titulo !== undefined && v.titulo !== "");
 
   const escolher = (id: string, tituloDoModelo: string) => {

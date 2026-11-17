@@ -9,7 +9,6 @@ import {
   service,
 } from "./support";
 
-/** Entra e espera o painel abrir (o redirecionamento do login é assíncrono). */
 async function login(page: Page, conta: { email: string; password: string }) {
   await entrar(page, conta.email, conta.password);
   await expect(page).toHaveURL(/\/inicio/);
@@ -28,7 +27,6 @@ test.describe("assistente de proposta", () => {
     const conta = await criarConta({ nome: "Carlos Andrade" });
     await login(page, conta);
 
-    // Etapa 1: modelo e cliente
     await page.goto("/propostas/nova");
     await page.getByText("Reforma de banheiro", { exact: true }).click();
     await expect(page.getByLabel("Título da proposta")).toHaveValue("Reforma de banheiro");
@@ -38,7 +36,6 @@ test.describe("assistente de proposta", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(page).toHaveURL(new RegExp(`/propostas/${UUID}/editar\\?etapa=2$`));
 
-    // Etapa 2: o modelo veio preenchido; acrescenta um item
     const escopo = page.getByLabel("O que será feito");
     await expect(escopo).toHaveValue(/Reforma completa do banheiro social/);
     await escopo.fill("Reforma completa do banheiro social, incluindo a pintura da laje.");
@@ -47,7 +44,6 @@ test.describe("assistente de proposta", () => {
     await page.getByLabel("Quantidade").last().fill("10");
     await page.getByLabel("Unidade").last().selectOption("m²");
 
-    // Autosave: salva sozinho e sobrevive a um recarregamento
     await expect(salvo(page)).toBeVisible({ timeout: 20_000 });
     await page.reload();
     await esperarAssistentePronto(page);
@@ -60,7 +56,6 @@ test.describe("assistente de proposta", () => {
     await expect(page.getByText("R$ 5.630,00").first()).toBeVisible();
     await page.getByLabel("Prazo", { exact: true }).fill("20 dias úteis");
 
-    // Etapa 4: revisão
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(page.getByRole("heading", { name: "Revisar", level: 2 })).toBeVisible();
     await expect(page.getByText("Pintura da laje").first()).toBeVisible();
@@ -69,7 +64,6 @@ test.describe("assistente de proposta", () => {
     await expect(page).toHaveURL(new RegExp(`/propostas/${UUID}$`));
     await expect(page.getByText("Pintura da laje").first()).toBeVisible();
 
-    // Banco: dados do cliente normalizados e total recalculado pelo servidor
     const { data: proposta } = await service
       .from("propostas")
       .select("id, titulo, cliente_nome, cliente_email, cliente_telefone, status")
@@ -115,7 +109,6 @@ test.describe("assistente de proposta", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(page).toHaveURL(/\/editar\?etapa=2$/);
 
-    // Etapa 2 vazia: não passa
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(
       page.getByText("Descreva o que será feito (pelo menos 10 caracteres)."),
@@ -124,7 +117,6 @@ test.describe("assistente de proposta", () => {
     await expect(page).toHaveURL(/etapa=2$/);
     await expect(page.getByLabel("O que será feito")).toBeFocused();
 
-    // Item em branco também é apontado, no campo certo
     await page.getByLabel("O que será feito").fill("Criação do logotipo e do manual de marca.");
     await page.getByRole("button", { name: "Adicionar item" }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
@@ -204,7 +196,6 @@ test.describe("assistente de proposta", () => {
       const lateral = page.getByRole("complementary", { name: "Pré-visualização do documento" });
       await expect(lateral).toBeVisible();
       await expect(lateral.getByText("Troca de tela iPhone 12")).toBeVisible();
-      // A pré-visualização é ao vivo
       await page
         .getByLabel("O que será feito")
         .fill("Escopo novo, que aparece ao lado enquanto digita.");
@@ -261,7 +252,6 @@ test.describe("listagem", () => {
     await expect(page.getByText("Página 2 de 2")).toBeVisible();
     await semRolagemHorizontal(page);
 
-    // Busca por cliente (parte do nome, sem diferenciar maiúsculas)
     await page.goto("/propostas");
     await page.getByLabel("Buscar por cliente ou título").fill("mariana");
     await page.getByRole("button", { name: "Buscar" }).click();
@@ -269,7 +259,6 @@ test.describe("listagem", () => {
     await expect(page.getByText("1 proposta", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Reforma do banheiro/ }).first()).toBeVisible();
 
-    // Busca por título + filtro por status, juntos
     await page.goto("/propostas?q=tela&status=visualizada");
     await expect(page.getByText("1 proposta · Visualizada")).toBeVisible();
     await page.goto("/propostas?q=tela&status=aceita");
@@ -277,7 +266,6 @@ test.describe("listagem", () => {
     await page.getByRole("link", { name: "Limpar filtros" }).click();
     await expect(page).toHaveURL(/\/propostas$/);
 
-    // Chip de status
     await page.getByRole("link", { name: "Aceita", exact: true }).click();
     await expect(page).toHaveURL(/status=aceita/);
     await expect(page.getByText("1 proposta · Aceita")).toBeVisible();
@@ -354,7 +342,6 @@ test.describe("painel inicial", () => {
 
     const resumo = page.getByRole("region", { name: "Resumo" });
     await expect(resumo.getByText("Aguardando resposta")).toBeVisible();
-    // enviada + visualizada, ambas dentro da validade
     await expect(resumo.locator("p", { hasText: /^2$/ })).toBeVisible();
     await expect(resumo).toContainText("R$ 8.400,00");
 
@@ -400,7 +387,6 @@ test.describe("detalhe e versionamento", () => {
     await expect(salvo(page)).toBeVisible({ timeout: 20_000 });
     await page.getByRole("link", { name: "Sair do assistente" }).click();
 
-    // Detalhe: agora é rascunho, com as duas versões
     await expect(page).toHaveURL(new RegExp(`/propostas/${enviada.id}$`));
     await expect(page.getByRole("link", { name: "Versão 1", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Versão 2 \(rascunho\)/ })).toBeVisible();
@@ -413,7 +399,6 @@ test.describe("detalhe e versionamento", () => {
     await expect(page.getByText(enviada.hash!)).toBeVisible();
     await expect(page.getByText(/Troca da tela do aparelho/).first()).toBeVisible();
 
-    // Banco: versão 1 intocada; versão 2 com o escopo novo e sem hash
     const { data: versoes } = await service
       .from("proposta_versoes")
       .select("numero, hash_sha256, enviada_em, conteudo")
@@ -478,7 +463,6 @@ test.describe("templates", () => {
       "Reforma de banheiro (personalizado)",
     );
 
-    // Validação no próprio editor
     await page.getByLabel("Nome do modelo").fill("");
     await page.getByRole("button", { name: "Salvar modelo" }).click();
     await expect(page.getByText("Dê um nome ao modelo (pelo menos 3 letras).")).toBeVisible();
@@ -489,13 +473,11 @@ test.describe("templates", () => {
     await expect(page).toHaveURL(/\/templates$/);
     await expect(page.getByRole("heading", { name: "Meu banheiro" })).toBeVisible();
 
-    // Usar o modelo próprio na proposta
     await page.getByRole("link", { name: /Usar modelo Meu banheiro/ }).click();
     await expect(page).toHaveURL(/\/propostas\/nova\?modelo=/);
     await expect(page.getByRole("radio", { name: /Meu banheiro/ })).toBeChecked();
     await expect(page.getByLabel("Título da proposta")).toHaveValue("Meu banheiro");
 
-    // Excluir
     await page.goto("/templates");
     await page.getByRole("button", { name: /Excluir.*Meu banheiro/ }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Excluir modelo" }).click();
@@ -503,7 +485,6 @@ test.describe("templates", () => {
     await expect(page.getByText("Modelo excluído.")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Meu banheiro" })).toHaveCount(0);
 
-    // Modelo global não abre no editor
     const { data: global } = await service
       .from("templates")
       .select("id")
@@ -556,7 +537,6 @@ test.describe("unidade do item", () => {
       await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe(valor);
     }
 
-    // A pré-visualização/documento usa a unidade escolhida
     await page.goto(`/propostas/${id}`);
     await expect(page.getByText(/1 milhar ×/)).toBeVisible();
 
@@ -570,7 +550,6 @@ test.describe("unidade do item", () => {
     await esperarAssistentePronto(page);
     await expect(page.getByLabel("Unidade")).toHaveValue("visita");
 
-    // E dá para voltar para a lista
     await page.getByLabel("Unidade").selectOption("kg");
     await expect.poll(unidadeNoBanco, { timeout: 20_000 }).toBe("kg");
   });

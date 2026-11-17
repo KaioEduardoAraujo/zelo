@@ -27,16 +27,10 @@ export type DocumentoPronto =
       ok: true;
       documento: object & { validade_dias: number; titulo: string };
       hash: string;
-      /** null na entrega. */
       valorCentavos: number | null;
     }
   | { ok: false; message?: string; erros?: Record<string, string> };
 
-/**
- * A proposta a que um aditivo ou uma entrega se refere. O banco já garante (trigger) que ela é
- * do mesmo prestador e está aceita; aqui só lemos o que entra no documento selado: o título e o
- * HASH da versão aceita.
- */
 export async function lerReferencia(
   supabase: SupabaseClient<Database>,
   paiId: string,
@@ -57,11 +51,7 @@ export async function lerReferencia(
   return { proposta_id: pai.id, titulo: pai.titulo, hash_documento: versao.hash_sha256 };
 }
 
-/**
- * Monta o documento a selar, conforme o tipo. Roda SEMPRE no servidor, a partir do que está no
- * banco (nunca do que o navegador mostra). Proposta, aditivo e entrega seguem o mesmo caminho
- * até o `enviar_versao`; só o conteúdo muda.
- */
+// Sempre a partir do banco, nunca do que o navegador mostra.
 export async function prepararParaEnvio(
   supabase: SupabaseClient<Database>,
   profile: Pick<Profile, "id" | "nome" | "empresa_nome">,
@@ -91,7 +81,7 @@ export async function prepararParaEnvio(
 
   if (proposta.tipo === "entrega") {
     const conteudo = normalizarEntrega(conteudoBruto);
-    // Só abre os arquivos depois que o resto está válido: não baixa fotos à toa.
+    // Só baixa as fotos se o resto estiver válido.
     const previa = prepararDocumentoEntrega({
       ...comum,
       referencia: referencia!,
@@ -131,7 +121,6 @@ export async function prepararParaEnvio(
     : { ok: false, erros: r.erros };
 }
 
-/** Valor total da versão (proposta/aditivo) ou null (entrega), para o resumo do link. */
 export function valorDaVersao(tipo: TipoDocumento, conteudoBruto: unknown): number | null {
   return tipo === "entrega" ? null : normalizarConteudo(conteudoBruto).valor_total_centavos;
 }

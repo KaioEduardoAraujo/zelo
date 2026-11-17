@@ -225,7 +225,6 @@ describe("documento selado da entrega", () => {
     expect(sem.documento.referencia).toBeUndefined();
     expect(com.hash).not.toBe(sem.hash);
 
-    // e o retrato lido de volta traz a referência
     const snap = lerSnapshot(com.documento);
     expect(snap?.referencia).toEqual(REF);
     expect(lerSnapshot(sem.documento)?.referencia).toBeUndefined();
@@ -235,7 +234,7 @@ describe("documento selado da entrega", () => {
 describe("textos por tipo", () => {
   const p = { titulo: "Reforma", prestador: "Andrade Reformas", valorCentavos: 513_000 };
 
-  it("a proposta mantém exatamente os textos da Fase 6", () => {
+  it("a proposta mantém os textos originais", () => {
     expect(TEXTOS.proposta.principal).toBe("Aceitar proposta");
     expect(TEXTOS.proposta.folha.aceito).toBe("Confirmar aceite");
     expect(textoConsentimento("aceito", p)).toBe(

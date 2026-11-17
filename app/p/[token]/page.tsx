@@ -17,18 +17,12 @@ import { carregarPropostaPublica, type PropostaPublica } from "@/lib/publico/que
 import { textosDe } from "@/lib/tipos";
 import { cn } from "@/lib/utils";
 
-// Nunca indexar: o link é pessoal. (Cabeçalhos no next.config.ts reforçam: no-referrer, no-store.)
 export const metadata: Metadata = { title: "Proposta", robots: { index: false, follow: false } };
 
-/**
- * Página pública do cliente (DESIGN.md 7.2.7), a tela mais importante do produto.
- * Server Component: chega pronta do servidor e quase não carrega JavaScript (só a barra de
- * resposta e o registro de abertura), porque costuma ser aberta no celular com rede ruim.
- */
 export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
   const { token } = await props.params;
   const proposta = await carregarPropostaPublica(token);
-  if (!proposta) notFound(); // inválido, inexistente ou substituído: a mesma resposta
+  if (!proposta) notFound();
 
   const prestador = proposta.prestadorDocumento.empresa || proposta.prestadorDocumento.nome;
   const T = textosDe(proposta.tipo);
@@ -151,7 +145,6 @@ function consentimentoBase(p: PropostaPublica, prestador: string) {
   };
 }
 
-/** Faixa no topo com a situação da proposta, quando ela não está mais aberta para resposta. */
 function Situacao({
   proposta,
   prestador,
@@ -181,7 +174,7 @@ function Situacao({
           </p>
           {r.resultado === "aceito" && (
             <Button asChild className="self-start">
-              {/* Link comum: rota de download (o token é conferido de novo no servidor). */}
+              {/* O token é conferido de novo na rota de download. */}
               <a href={`/p/${token}/comprovante`}>
                 <Download aria-hidden="true" />
                 Baixar comprovante

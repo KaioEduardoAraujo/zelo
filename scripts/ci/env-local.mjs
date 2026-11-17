@@ -1,8 +1,4 @@
-// Gera o .env.local a partir do Supabase LOCAL (`supabase status`), para a CI (GitHub Actions).
-// As chaves do Supabase local são as de demonstração do CLI, não segredos de produção; o
-// HASH_PEPPER é gerado na hora, aleatório, a cada execução. Os e-mails vão para o Mailpit.
-//
-// Uso: node scripts/ci/env-local.mjs   (com o Supabase local já rodando)
+// Gera o .env.local da CI a partir do Supabase local (chaves de demonstração).
 import { execSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, writeFileSync } from "node:fs";

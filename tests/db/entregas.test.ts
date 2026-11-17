@@ -14,11 +14,6 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Fase 8: aceite de entrega. O bucket `entregas` é privado, cada prestador só mexe na própria
- * pasta e uma foto anexada nunca muda nem some (é prova). A entrega nasce de uma proposta aceita
- * e é enviada pela MESMA função do envio da proposta.
- */
 let a: Usuario;
 let b: Usuario;
 
@@ -178,7 +173,7 @@ describe("entrega como proposta derivada", () => {
     expect(error).toBeNull();
     expect(data?.r_numero).toBe(1);
 
-    // O que o banco guardou, relido do jsonb, continua dando o mesmo hash (fotos e referência incluídas)
+    // Relido do jsonb, o hash continua o mesmo (fotos e referência incluídas)
     const { data: v } = await svc
       .from("proposta_versoes")
       .select("conteudo, hash_sha256, enviada_em")
@@ -187,7 +182,6 @@ describe("entrega como proposta derivada", () => {
     expect(v?.enviada_em).not.toBeNull();
     expect(hashDocumento(v!.conteudo)).toBe(hash);
 
-    // Enviada, a versão é imutável (a foto citada no documento não pode ser "trocada" no texto)
     const edita = await a.client
       .from("proposta_versoes")
       .update({ conteudo: { ...documento, resumo: "outro" } })

@@ -1,6 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Esqueleto da listagem: aparece enquanto o servidor consulta o banco (DESIGN.md 6).
 export default function Loading() {
   return (
     <div role="status" aria-label="Carregando propostas">

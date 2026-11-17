@@ -11,11 +11,7 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Prova da regra inegociável nº 1: o que foi enviado/aceito não muda.
- * Os testes usam a service_role DE PROPÓSITO: ela ignora o RLS, então se o bloqueio
- * funciona para ela, funciona para qualquer um (a proteção está nos triggers).
- */
+// Usa a service_role de propósito: se o bloqueio vale para ela, vale para qualquer um.
 let dono: Usuario;
 let aceita: Awaited<ReturnType<typeof criarAceita>>;
 const svc = () => serviceClient();

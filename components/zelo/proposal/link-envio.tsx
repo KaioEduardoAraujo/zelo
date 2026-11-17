@@ -14,13 +14,7 @@ import {
   type ResumoEnvio,
 } from "@/lib/proposals/envio";
 
-/**
- * Corpo da tela "Proposta criada" (DESIGN.md 7.2.5): a ação principal é "Enviar por WhatsApp",
- * a secundária é "Copiar link", e a mensagem que vai ser enviada fica à vista.
- *
- * O título fica por conta de quem usa (h1 na página, título do diálogo no novo link).
- * O link com o token só existe neste estado do navegador: nada vai para a URL nem para o histórico.
- */
+// O link com o token só existe neste estado do navegador (nada na URL nem no histórico).
 export function LinkEnvio({ resumo }: { resumo: ResumoEnvio }) {
   const mensagem = mensagemWhatsApp(resumo);
   const whatsapp = urlWhatsApp(resumo.clienteTelefone, mensagem);

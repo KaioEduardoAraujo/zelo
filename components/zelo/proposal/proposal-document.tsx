@@ -10,18 +10,11 @@ type ProposalDocumentProps = {
   prestador: { nome: string; empresa?: string | null };
   clienteNome: string;
   conteudo: ConteudoRascunho;
-  /** Rascunho: "Válida por N dias depois do envio". Enviada: a data em que vence. */
   validade: { dias: number } | { ate: string };
-  /** Aditivo: título da proposta aceita a que ele se refere. */
   referenciaTitulo?: string | null;
   className?: string;
 };
 
-/**
- * O documento como o cliente o vê (DESIGN.md 1.1: o documento é o herói). Componente apenas de
- * apresentação, sem estado: serve para a pré-visualização ao vivo, o detalhe da proposta e a
- * página pública. Campos ainda vazios mostram um aviso discreto em vez de sumir.
- */
 export function ProposalDocument({
   titulo,
   prestador,

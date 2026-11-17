@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/zelo/logo";
 import { logout } from "@/lib/auth/actions";
 
-/** Cabeçalho provisório das áreas logadas. A Fase 3 troca pelo shell completo (sidebar/nav inferior). */
 export function SessionHeader({ name, home }: { name: string; home: string }) {
   return (
     <header className="border-b border-line bg-surface">

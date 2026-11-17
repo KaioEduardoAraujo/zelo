@@ -19,7 +19,6 @@ async function login(page: Page, conta: { email: string; password: string }) {
 const salvo = (page: Page) =>
   page.getByRole("status").filter({ hasText: /Rascunho salvo às \d{2}:\d{2}/ });
 
-/** Confirma o envio no diálogo e espera a tela "Proposta criada". */
 async function enviarPelaEtapa4(page: Page) {
   await page.getByRole("button", { name: "Enviar proposta" }).click();
   const dialogo = page.getByRole("dialog");
@@ -30,7 +29,6 @@ async function enviarPelaEtapa4(page: Page) {
   });
 }
 
-/** O link da proposta aparece na mensagem que será enviada. Devolve o link e o token. */
 async function lerLink(page: Page) {
   const mensagem = await page
     .getByText(/\/p\/[A-Za-z0-9_-]{43}/)
@@ -63,7 +61,6 @@ test.describe("enviar a proposta", () => {
     await expect(page.getByText("Falta preencher")).toHaveCount(0);
     await enviarPelaEtapa4(page);
 
-    // Tela "Proposta criada": mensagem pronta, WhatsApp e copiar link
     await expect(page.getByText("Mensagem que será enviada")).toBeVisible();
     await expect(page.getByText("Olá, Rafael! Aqui é Carlos Andrade.")).toBeVisible();
     const { link, token } = await lerLink(page);
@@ -118,7 +115,6 @@ test.describe("enviar a proposta", () => {
       { tipo: "enviada", metadados: { versao: 1, hash_sha256: v!.hash_sha256 } },
     ]);
 
-    // Detalhe: enviada, hash conferido, na trilha, e o assistente não abre mais
     await page.getByRole("link", { name: "Ver proposta" }).click();
     await expect(page).toHaveURL(new RegExp(`/propostas/${id}$`));
     await expect(page.getByText("Enviada", { exact: true }).first()).toBeVisible();
@@ -159,7 +155,6 @@ test.describe("enviar a proposta", () => {
       .single();
     expect(p).toEqual({ status: "rascunho", token_hash: null });
 
-    // "Corrigir" leva à etapa certa; corrigindo, dá para enviar
     await page.getByRole("button", { name: "Corrigir" }).click();
     await expect(page.getByLabel("Prazo", { exact: true })).toBeVisible();
     await page.getByLabel("Prazo", { exact: true }).fill("2 dias úteis");
@@ -235,7 +230,7 @@ test.describe("novo link", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
 
     await page.reload();
-    await expect(page.getByText("Novo link gerado").first()).toBeVisible(); // na trilha de auditoria
+    await expect(page.getByText("Novo link gerado").first()).toBeVisible();
   });
 
   test("o diálogo do novo link cabe na tela, no celular e no desktop", async ({ page }) => {
@@ -340,7 +335,6 @@ test.describe("reenviar uma nova versão", () => {
     ).toBeVisible();
     await expect(page.getByText(/Conteúdo conferido/)).toBeVisible();
 
-    // A versão 1 também confere, com o mesmo hash de sempre
     await page.getByRole("link", { name: "Versão 1", exact: true }).click();
     await expect(page.getByText(enviada.hash!)).toBeVisible();
     await expect(page.getByText(/Conteúdo conferido/)).toBeVisible();

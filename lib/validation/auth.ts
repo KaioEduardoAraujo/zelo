@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-/*
- * Validação dos formulários de autenticação. Usada no servidor (Server Actions) — a entrada
- * do navegador nunca é confiável — e pode ser reaproveitada no cliente para feedback rápido.
- * Mensagens em português, no tom do DESIGN.md.
- */
-
 const email = z
   .string()
   .trim()
@@ -14,7 +8,7 @@ const email = z
   .max(254, "E-mail longo demais.")
   .pipe(z.email("Confira o e-mail: parece que falta alguma parte."));
 
-/** Mesmas regras configuradas no Supabase Auth (mín. 8, letras e números). Máx. 72 = limite do bcrypt. */
+// Máx. 72: limite do bcrypt.
 export const passwordSchema = z
   .string()
   .min(8, "Use pelo menos 8 caracteres.")
@@ -22,7 +16,6 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, "Inclua pelo menos uma letra.")
   .regex(/\d/, "Inclua pelo menos um número.");
 
-/** "" vira undefined: campos opcionais chegam vazios do FormData. */
 const optionalText = (max: number, message: string) =>
   z
     .string()
@@ -31,7 +24,6 @@ const optionalText = (max: number, message: string) =>
     .transform((v) => (v === "" ? undefined : v))
     .optional();
 
-/** Aceita "(11) 98765-4321" e guarda só os dígitos (DDD + número). */
 export const phoneSchema = z
   .string()
   .transform((v) => v.replace(/\D/g, ""))
@@ -65,7 +57,6 @@ export const resetPasswordSchema = z
     path: ["confirm"],
   });
 
-/** Converte erros do Zod em { campo: "primeira mensagem" } para exibir abaixo de cada input. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   const out: Record<string, string> = {};
   for (const issue of error.issues) {

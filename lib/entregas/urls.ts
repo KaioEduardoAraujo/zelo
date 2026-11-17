@@ -5,14 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { caminhoFotoValido, type FotoEntrega } from "@/lib/validation/entrega";
 
-/**
- * URLs assinadas (curta duração) das fotos de uma entrega, para mostrar na tela. O bucket é
- * privado: sem a URL assinada ninguém abre a foto (regra 7).
- *
- * Só assina caminhos da pasta DESTE prestador e DESTA entrega. O caminho vem de um documento que
- * o prestador montou; sem esta conferência, um caminho forjado faria o servidor (que, na página
- * do cliente, usa a service_role) assinar o arquivo de outra pessoa.
- */
+// Só assina caminhos desta pasta: na página do cliente o servidor usa a service_role.
 export async function urlsDasFotos(
   supabase: SupabaseClient<Database>,
   fotos: Pick<FotoEntrega, "path">[],

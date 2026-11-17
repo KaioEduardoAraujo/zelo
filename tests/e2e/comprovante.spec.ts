@@ -11,11 +11,6 @@ import {
   zerarLimitesDeTaxa,
 } from "./support";
 
-/*
- * Fase 7: comprovante em PDF (download do prestador e do cliente) e a verificação pública.
- * O fluxo completo (aceite → PDF → e-mail aos dois) está em publico.spec.ts.
- */
-
 test.beforeEach(async () => {
   await zerarLimitesDeTaxa();
 });
@@ -38,7 +33,6 @@ test("prestador baixa o comprovante e qualquer pessoa confere em /verificar", as
   const s = await semearProposta(conta.id, { status: "aceita", cliente: "Mariana Costa" });
   const aceite = await aceiteDe(s.versaoId);
 
-  // Detalhe da proposta: selo, quem aceitou (CPF mascarado) e o botão de download
   await entrar(page, conta.email, conta.password);
   await expect(page).toHaveURL(/\/inicio/);
   await page.goto(`/propostas/${s.id}`);
@@ -77,7 +71,6 @@ test("prestador baixa o comprovante e qualquer pessoa confere em /verificar", as
   expect(r.status()).toBe(404);
   await contexto.close();
 
-  // Verificação pública, sem login, com o código vindo do link do PDF/e-mail
   const anonimo = await browser.newContext();
   const v = await anonimo.newPage();
   await v.goto(`/verificar?codigo=${aceite.codigo_comprovante}`);
@@ -89,14 +82,12 @@ test("prestador baixa o comprovante e qualquer pessoa confere em /verificar", as
   await expect(v.getByText("Mariana Costa")).toHaveCount(0);
   await expect(v.getByText(/982\.247/)).toHaveCount(0);
 
-  // Com o arquivo original: idêntico
   await v.getByLabel("Arquivo do comprovante (PDF)").setInputFiles(caminhoPdf);
   await v.getByRole("button", { name: "Verificar" }).click();
   await expect(
     v.getByText("O arquivo enviado é idêntico ao comprovante original emitido pelo Zelo."),
   ).toBeVisible();
 
-  // Com o arquivo alterado (um byte a mais): não é o original
   await v.getByLabel("Arquivo do comprovante (PDF)").setInputFiles({
     name: "editado.pdf",
     mimeType: "application/pdf",
@@ -124,7 +115,6 @@ test("/verificar: código inexistente, formato errado e digitação solta", asyn
   await verificar.click();
   await expect(page.getByRole("heading", { name: "Não encontrado" })).toBeVisible();
 
-  // Minúsculas e sem traços também valem
   const conta = await criarConta({ nome: "Carlos Andrade" });
   const s = await semearProposta(conta.id, { status: "aceita" });
   const aceite = await aceiteDe(s.versaoId);

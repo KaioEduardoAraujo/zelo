@@ -14,11 +14,6 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Fase 5: enviar_versao() e regenerar_link(). Provam que o envio é atômico, que só o dono envia,
- * que o hash recalculado depois continua batendo (mesmo passando pelo jsonb do Postgres) e que
- * um link novo invalida o anterior.
- */
 let a: Usuario;
 let b: Usuario;
 let admin: Usuario;
@@ -31,7 +26,6 @@ beforeAll(async () => {
   ]);
 });
 
-/** Documento como a aplicação o monta: conteúdo estrito + retrato das partes (decisão D24). */
 function documentoDe(propostaId: string, versao: number, patch: Record<string, unknown> = {}) {
   return {
     escopo: "Reforma completa do banheiro social, com troca de piso e revestimento.",
@@ -98,7 +92,6 @@ describe("enviar_versao: o caminho feliz", () => {
     expect(error).toBeNull();
     expect(data?.r_numero).toBe(1);
 
-    // validade = momento do envio + validade_dias do documento
     const dias =
       (new Date(data!.r_validade_em).getTime() - new Date(data!.r_enviada_em).getTime()) / 864e5;
     expect(dias).toBeCloseTo(15, 4);
@@ -134,9 +127,8 @@ describe("enviar_versao: o caminho feliz", () => {
   });
 
   it("o hash recalculado DEPOIS de passar pelo jsonb do Postgres continua batendo", async () => {
-    // Acentos, aspas curvas, emoji, 22,5 m² e chaves fora de ordem: tudo o que poderia mudar de
-    // forma ao ser guardado e lido de volta. Se mudasse, o verificador (Fase 7) reprovaria
-    // documentos legítimos.
+    // Tudo o que poderia mudar ao passar pelo jsonb: acentos, aspas curvas, emoji, 22,5 e chaves
+    // fora de ordem.
     const { proposta, versao } = await criarRascunho(a);
     const doc = documentoDe(proposta.id, 1, {
       escopo: "Troca de piso em área “molhada” ✓ — inclui rodapé, 100% do cômodo.",
@@ -209,7 +201,7 @@ describe("enviar_versao: o caminho feliz", () => {
       .from("auditoria_eventos")
       .select("tipo")
       .eq("proposta_id", enviada.propostaId);
-    expect(eventos?.filter((e) => e.tipo === "enviada")).toHaveLength(1); // o da v2 (a v1 foi semeada sem evento)
+    expect(eventos?.filter((e) => e.tipo === "enviada")).toHaveLength(1);
   });
 });
 

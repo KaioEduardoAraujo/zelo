@@ -1,11 +1,7 @@
 import { z } from "zod";
 
-/*
- * Entrada da verificação pública. O código é normalizado (maiúsculas, sem espaços, traços
- * opcionais) para aceitar "zl 4k7q 92md" digitado no celular. O arquivo nunca sai do navegador:
- * só o SHA-256 dele, calculado lá, chega ao servidor.
- */
-export const ALFABETO_CODIGO = "[2-9A-Z]"; // o banco não usa 0/1 (confundem com O/I)
+// O arquivo não sai do navegador: só o SHA-256 dele chega aqui.
+export const ALFABETO_CODIGO = "[2-9A-Z]"; // sem 0 e 1, que se confundem com O e I
 
 export function normalizarCodigo(bruto: string): string {
   const limpo = bruto.toUpperCase().replace(/[^0-9A-Z]/g, "");

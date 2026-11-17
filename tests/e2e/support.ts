@@ -9,7 +9,7 @@ import { gerarToken, hashToken } from "@/lib/crypto/token";
 import { prepararDocumento } from "@/lib/proposals/envio";
 import type { Database } from "@/lib/supabase/database.types";
 
-/* Apoio dos testes e2e: só roda contra o Supabase LOCAL. */
+// Só roda contra o Supabase local.
 const status = JSON.parse(
   execSync("npx supabase status -o json", { stdio: ["ignore", "pipe", "ignore"] }).toString(),
 ) as Record<string, string>;
@@ -26,7 +26,6 @@ const MAILPIT = status.MAILPIT_URL ?? "http://127.0.0.1:54324";
 export const novoEmail = () => `e2e-${randomUUID().slice(0, 8)}@example.com`;
 export const novaSenha = () => `Senha${randomBytes(6).toString("hex")}9`;
 
-/** Cria usuário confirmado direto pela Admin API (mais rápido que pela tela). */
 export async function criarConta(
   opts: { nome?: string; admin?: boolean; suspensa?: boolean } = {},
 ) {
@@ -59,7 +58,6 @@ export async function entrar(page: Page, email: string, password: string, path =
   await page.getByRole("button", { name: "Entrar" }).click();
 }
 
-/** Espera o e-mail chegar no Mailpit e devolve o HTML. */
 export async function ultimoEmailPara(email: string): Promise<{ subject: string; html: string }> {
   let id: string | undefined;
   await expect
@@ -84,7 +82,6 @@ export async function ultimoEmailPara(email: string): Promise<{ subject: string;
 
 export type EmailResumo = { subject: string; anexos: { nome: string; tipo: string }[] };
 
-/** Todos os e-mails recebidos por um endereço no Mailpit (mais novo primeiro), com os anexos. */
 export async function emailsPara(email: string): Promise<EmailResumo[]> {
   const r = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
   const json = (await r.json()) as { messages: { ID: string; Subject: string }[] };
@@ -101,7 +98,6 @@ export async function emailsPara(email: string): Promise<EmailResumo[]> {
   );
 }
 
-/** Sair da conta: no desktop pela barra lateral; no celular pela tela Conta. */
 export async function sair(page: Page) {
   const lateral = page.getByRole("complementary").getByRole("button", { name: "Sair" });
   if (await lateral.isVisible()) {
@@ -113,7 +109,6 @@ export async function sair(page: Page) {
   await expect(page).toHaveURL(/\/login$/);
 }
 
-/** Segredo do HMAC do token (o mesmo do app): do ambiente ou do .env.local. */
 function lerPepper(): string {
   if (process.env.HASH_PEPPER) return process.env.HASH_PEPPER;
   const linha = readFileSync(".env.local", "utf8")
@@ -125,10 +120,7 @@ function lerPepper(): string {
 
 export type StatusSemeado = "rascunho" | "enviada" | "visualizada" | "ajuste_solicitado" | "aceita";
 
-/**
- * Cria uma proposta já no status pedido, direto pela service_role (só no Supabase local).
- * Os triggers do banco continuam valendo: o status só avança se o registro do cliente existir.
- */
+// Direto pela service_role; os triggers continuam valendo.
 export async function semearProposta(
   prestadorId: string,
   opts: {
@@ -180,8 +172,7 @@ export async function semearProposta(
   if (e2) throw e2;
   if (status === "rascunho") return { id: p.id, versaoId: v.id, hash: null, token: null };
 
-  // Documento selado EXATAMENTE como o app faz no envio (conteúdo + retrato das partes), com o
-  // hash real: o detalhe e a página pública conferem esse hash.
+  // Documento selado como o app faz, com o hash real.
   const { data: perfil } = await service
     .from("profiles")
     .select("nome, empresa_nome")
@@ -227,7 +218,7 @@ export async function semearProposta(
     const { error: e5 } = await service.from("aceites").insert({
       id: aceiteId,
       versao_id: v.id,
-      // Como o banco faz no aceite de verdade (D21): o caminho do PDF nasce com o aceite.
+      // Como o banco faz no aceite: o caminho do PDF nasce com o aceite.
       pdf_path: status === "aceita" ? `${prestadorId}/${aceiteId}.pdf` : null,
       resultado: status === "aceita" ? "aceito" : "ajuste",
       comentario: status === "ajuste_solicitado" ? "Pode incluir a película?" : null,
@@ -246,7 +237,6 @@ export async function semearProposta(
   return { id: p.id, versaoId: v.id, hash, token };
 }
 
-/** Nenhuma rolagem horizontal (DESIGN.md: funciona em 375px). */
 export async function semRolagemHorizontal(page: Page) {
   const { scroll, viewport } = await page.evaluate(() => ({
     scroll: document.documentElement.scrollWidth,
@@ -255,16 +245,12 @@ export async function semRolagemHorizontal(page: Page) {
   expect(scroll, `largura do conteúdo em ${page.url()}`).toBeLessThanOrEqual(viewport);
 }
 
-/** Zera os contadores do limite de taxa (só no Supabase local; o servidor local usa um IP só). */
 export async function zerarLimitesDeTaxa() {
   const { error } = await service.from("limites_taxa").delete().neq("chave", "");
   if (error) throw error;
 }
 
-/**
- * Espera o assistente ficar pronto (JavaScript carregado). O botão "Continuar" só habilita depois
- * da hidratação: interagir antes disso perde o clique, num teste ou num celular lento.
- */
+// O botão só habilita depois da hidratação: clicar antes perde o clique.
 export async function esperarAssistentePronto(page: Page) {
   await expect(
     page.getByRole("button", {
@@ -275,7 +261,6 @@ export async function esperarAssistentePronto(page: Page) {
   });
 }
 
-/** Pede o código na folha e devolve o código lido no e-mail (Mailpit). */
 export async function pedirCodigo(folha: Locator, email: string, emailsAntes = 0): Promise<string> {
   await folha.getByRole("button", { name: "Enviar código" }).click();
   await expect(folha.getByText(/Enviamos um código para/)).toBeVisible({ timeout: 20_000 });

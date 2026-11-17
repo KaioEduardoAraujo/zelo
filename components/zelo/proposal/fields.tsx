@@ -15,7 +15,6 @@ import { formatDecimal, onlyDigits, parseDecimal } from "@/lib/masks";
 import { UNIDADE_OUTRA, UNIDADES } from "@/lib/unidades";
 import { totalItemCentavos, type ConteudoRascunho } from "@/lib/validation/proposta";
 
-/** Altera o conteúdo recebendo o estado anterior (evita perder edições rápidas seguidas). */
 export type MudarConteudo = (fn: (c: ConteudoRascunho) => ConteudoRascunho) => void;
 
 type CamposProps = { conteudo: ConteudoRascunho; mudar: MudarConteudo };
@@ -23,11 +22,7 @@ type CamposProps = { conteudo: ConteudoRascunho; mudar: MudarConteudo };
 const MAX_ITENS = 100;
 const MAX_EXCLUSOES = 50;
 
-/**
- * Quantidade digitada em português ("22,5"). Guarda o TEXTO enquanto a pessoa digita
- * (para "22," não virar "22" no meio da digitação) e só avisa o pai quando o texto vira
- * um número válido. Se o valor mudar por fora (ex.: item removido acima), refaz o texto.
- */
+// Guarda o texto enquanto se digita: "22," não pode virar "22" no meio da digitação.
 function QuantityInput({
   value,
   onValue,
@@ -39,7 +34,6 @@ function QuantityInput({
   const [text, setText] = useState(formatDecimal(value));
   const [anterior, setAnterior] = useState(value);
   if (value !== anterior) {
-    // "Ajustar estado durante a renderização": recomendado pelo React para derivar de props.
     setAnterior(value);
     if (parseDecimal(text) !== value) setText(formatDecimal(value));
   }
@@ -54,7 +48,6 @@ function QuantityInput({
         const bruto = e.target.value.replace(/[^\d.,\s]/g, "");
         setText(bruto);
         const n = parseDecimal(bruto);
-        // Texto vazio ou incompleto vira 0: a validação aponta "maior que zero".
         onValue(n === null ? 0 : Math.round(n * 100) / 100);
       }}
       onBlur={(e) => {
@@ -66,12 +59,6 @@ function QuantityInput({
   );
 }
 
-/**
- * Unidade do item: seletor com a lista de unidades. "Outra…" abre um campo de texto para quem
- * precisa de algo fora da lista, e uma unidade antiga já salva (fora da lista) continua aparecendo.
- * (Antes era um <datalist>, que só sugere o que combina com o texto já digitado: com "un" no
- * campo, nenhuma outra opção aparecia.)
- */
 function UnitSelect({
   value,
   onValue,
@@ -134,8 +121,6 @@ function UnitSelect({
     </NativeSelect>
   );
 }
-
-/* ---------------- Etapa 2: escopo, itens e exclusões ---------------- */
 
 export function EscopoFields({ conteudo, mudar }: CamposProps) {
   const { erro, tocar } = useErros();
@@ -331,8 +316,6 @@ export function EscopoFields({ conteudo, mudar }: CamposProps) {
     </div>
   );
 }
-
-/* ---------- Etapa 3: valores, prazo, pagamento, garantia, validade ---------- */
 
 export function ValoresFields({ conteudo, mudar }: CamposProps) {
   const { erro, tocar } = useErros();

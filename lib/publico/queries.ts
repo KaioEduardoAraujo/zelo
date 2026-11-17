@@ -10,41 +10,27 @@ import { lerSnapshot } from "@/lib/proposals/snapshot";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ConteudoRascunho } from "@/lib/validation/proposta";
 
-/*
- * Leitura da proposta pela página pública. O cliente não tem conta: o acesso é só pelo
- * SERVIDOR, com a service_role, e só depois de conferir o token (regra inegociável nº 4).
- *
- * Token com formato errado, inexistente ou substituído por um link novo: tudo vira `null`, e a
- * página responde o mesmo "link inválido" (não revela se a proposta existe).
- */
+// Token inválido, inexistente ou substituído dão o mesmo null: não revela se a proposta existe.
 
 export type EstadoPublico =
   "aberta" | "expirada" | "aceita" | "recusada" | "ajuste" | "em_atualizacao";
 
 export type PropostaPublica = {
-  /** Só para uso no servidor (ações). Nunca vai para um componente de cliente. */
   id: string;
   tipo: TipoDocumento;
   estado: EstadoPublico;
   titulo: string;
-  /** Como o prestador aparece no documento (retrato do envio). */
   prestadorDocumento: { nome: string; empresa: string | null };
-  /** Contato ATUAL do prestador, para "Tenho dúvidas". */
   contato: { nome: string; telefone: string | null; email: string };
   cliente: { nome: string; email: string };
-  /** Proposta e aditivo. Em entrega é null (veja `entrega`). */
   conteudo: ConteudoRascunho | null;
-  /** Só em entrega: checklist e fotos. */
   entrega: ConteudoEntrega | null;
-  /** Caminho da foto → URL assinada (1 hora). Só em entrega. */
   fotoUrls: Record<string, string>;
-  /** Aditivo e entrega: título da proposta aceita a que se referem. */
   referenciaTitulo: string | null;
   hash: string | null;
   enviadaEm: string | null;
   validadeEm: string | null;
   resposta: {
-    /** Só para uso no servidor (download do comprovante). */
     aceiteId: string;
     pdfPath: string | null;
     resultado: "aceito" | "recusado" | "ajuste";
@@ -66,7 +52,7 @@ const ESTADO: Record<string, EstadoPublico> = {
 };
 
 export async function carregarPropostaPublica(token: string): Promise<PropostaPublica | null> {
-  if (!tokenValido(token)) return null; // lixo na URL nem chega ao banco
+  if (!tokenValido(token)) return null;
 
   const svc = createServiceClient();
   const { data: p } = await svc
@@ -99,7 +85,7 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
     validadeEm: p.validade_em,
   };
 
-  // Uma nova versão está sendo editada (D50): a versão antiga não é mostrada nem aceita.
+  // Nova versão em edição: a anterior não é mostrada nem aceita.
   if (p.status === "rascunho") {
     return {
       ...base,
@@ -148,7 +134,6 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
       : base.cliente,
     conteudo: tipo === "entrega" ? null : normalizarConteudo(v.conteudo),
     entrega,
-    // Service role: só assina fotos da pasta deste prestador e desta entrega (urlsDasFotos).
     fotoUrls: entrega ? await urlsDasFotos(svc, entrega.fotos, p.prestador_id, p.id) : {},
     referenciaTitulo: snapshot?.referencia?.titulo || null,
     hash: v.hash_sha256,

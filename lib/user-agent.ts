@@ -1,7 +1,3 @@
-/*
- * Resume o user agent para exibir na trilha de auditoria ("Android 15, Chrome 131").
- * O user agent completo continua gravado no banco; isto é só para leitura humana.
- */
 export function summarizeUserAgent(ua: string | null | undefined): string {
   if (!ua) return "Dispositivo não identificado";
 

@@ -4,7 +4,7 @@ import { Resend } from "resend";
 
 import type { EmailProvider } from "@/lib/email/types";
 
-/** Resend (100 e-mails por dia no plano gratuito). Sem domínio verificado, só entrega ao dono da conta. */
+// Sem domínio verificado, o Resend só entrega ao dono da conta.
 export function criarResend(apiKey: string): EmailProvider {
   const resend = new Resend(apiKey);
   return {
@@ -21,7 +21,7 @@ export function criarResend(apiKey: string): EmailProvider {
           contentType: a.tipo,
         })),
       });
-      // A mensagem de erro do provedor não sai daqui (pode conter o endereço do destinatário).
+      // O erro do provedor pode conter o destinatário: não sai daqui.
       if (error) throw new Error("Falha ao enviar e-mail pelo Resend");
     },
   };

@@ -2,8 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Tabela do desktop (DESIGN.md 6): cabeçalho surface-2, linhas de 56px, bordas finas.
-
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div

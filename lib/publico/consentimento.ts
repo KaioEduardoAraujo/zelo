@@ -2,17 +2,11 @@ import { formatCentavos } from "@/lib/format";
 import type { AcaoCliente } from "@/lib/publico/otp";
 import type { TipoDocumento } from "@/lib/tipos";
 
-/*
- * Texto de consentimento (DESIGN.md 8 e LGPD): claro, em primeira pessoa, com a FINALIDADE dos
- * dados. É montado no servidor e gravado no aceite exatamente como foi mostrado.
- * Os textos da PROPOSTA são os da Fase 6; aditivo e entrega só trocam o objeto da frase.
- */
 export function textoConsentimento(
   acao: AcaoCliente,
   p: {
     titulo: string;
     prestador: string;
-    /** null na entrega (não tem valor). */
     valorCentavos: number | null;
     tipo?: TipoDocumento;
   },

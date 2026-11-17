@@ -22,7 +22,6 @@ function obterProvedor(): EmailProvider {
   return provedor;
 }
 
-/** Envia um e-mail pelo provedor configurado em EMAIL_PROVIDER (resend | smtp). */
 export async function enviarEmail(mensagem: MensagemEmail): Promise<void> {
   await obterProvedor().enviar({ ...mensagem, de: serverEnv().EMAIL_FROM });
 }

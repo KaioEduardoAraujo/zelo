@@ -10,13 +10,6 @@ import {
   zerarLimitesDeTaxa,
 } from "./support";
 
-/*
- * Fase 10: acessibilidade automática (axe-core) nas telas principais, no desktop e em 375px.
- * Regras WCAG 2.1 A e AA: contraste, rótulos, nomes de botões e links, estrutura de títulos,
- * atributos ARIA. O que o axe não pega (ordem do foco, teclado) é coberto nos outros testes,
- * que usam os papéis e rótulos acessíveis para encontrar cada elemento.
- */
-
 test.beforeEach(async () => {
   await zerarLimitesDeTaxa();
 });
@@ -91,7 +84,6 @@ test("área do prestador: painel, listagem, detalhe, assistente, entrega e model
   await esperarAssistentePronto(page);
   await semViolacoes(page, "assistente, etapa 4");
 
-  // Editor de entrega
   const { data: e } = await service
     .from("propostas")
     .insert({

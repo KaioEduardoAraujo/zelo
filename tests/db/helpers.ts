@@ -11,19 +11,17 @@ export type Db = SupabaseClient<Database>;
 const cfg = () => inject("supabase");
 const opts = { auth: { persistSession: false, autoRefreshToken: false } } as const;
 
-/** Cliente do servidor (service_role): ignora RLS, mas NÃO ignora triggers. */
+// service_role: ignora o RLS, mas não os triggers.
 export function serviceClient(): Db {
   return createClient<Database>(cfg().url, cfg().secretKey, opts);
 }
 
-/** Visitante sem login (papel anon). */
 export function anonClient(): Db {
   return createClient<Database>(cfg().url, cfg().publishableKey, opts);
 }
 
 export type Usuario = { id: string; email: string; client: Db };
 
-/** Cria um usuário pela Admin API e devolve um cliente já logado como ele. */
 export async function criarUsuario(
   nome: string,
   metadados: Record<string, string> = {},
@@ -66,7 +64,6 @@ const conteudo = {
   garantia: "90 dias",
 };
 
-/** Cria proposta + versão 1 em rascunho, como o prestador faria pela aplicação. */
 export async function criarRascunho(dono: Usuario) {
   const { data: proposta, error } = await dono.client
     .from("propostas")
@@ -89,7 +86,6 @@ export async function criarRascunho(dono: Usuario) {
   return { proposta, versao };
 }
 
-/** Rascunho → enviada (trava a versão com o hash e grava o hash do token). */
 export async function criarEnviada(dono: Usuario) {
   const { proposta, versao } = await criarRascunho(dono);
   const hash = hashAleatorio();
@@ -113,7 +109,6 @@ export async function criarEnviada(dono: Usuario) {
   return { propostaId: proposta.id, versaoId: versao.id, hash };
 }
 
-/** Enviada → aceita, como o servidor faria na rota pública (service_role). */
 export async function criarAceita(dono: Usuario) {
   const enviada = await criarEnviada(dono);
   const svc = serviceClient();
@@ -151,7 +146,6 @@ export async function criarAceita(dono: Usuario) {
   return { ...enviada, aceiteId: aceite.id, eventoId: evento.id };
 }
 
-/** Executa SQL como superusuário (postgres) direto no container do banco local. */
 export function psql(sql: string) {
   return execFileSync(
     "docker",

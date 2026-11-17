@@ -12,14 +12,8 @@ import {
   type FotoEntrega,
 } from "@/lib/validation/entrega";
 
-/**
- * Sela as fotos no momento do ENVIO. O servidor baixa cada arquivo do bucket privado com a
- * sessão do prestador (o RLS só deixa ler a própria pasta), confere:
- *   - o caminho é da pasta deste prestador e desta entrega;
- *   - o tipo, pelos primeiros bytes (a extensão e o Content-Type não são confiáveis);
- *   - o tamanho;
- * e calcula o SHA-256 dos bytes. Nada do que o navegador diz sobre a foto é usado.
- */
+// Baixa com a sessão do prestador (RLS) e confere o tipo pelos bytes e o tamanho: nada do que
+// o navegador diz sobre a foto é usado.
 export async function selarFotos(
   supabase: SupabaseClient<Database>,
   fotos: FotoEntrega[],

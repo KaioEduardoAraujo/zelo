@@ -1,14 +1,6 @@
--- =============================================================================
--- Zelo · 0005 · Row Level Security (RLS), permissões, view e função do admin
---
--- Modelo:
---   * anon (visitante sem login): NENHUM acesso direto às tabelas. O cliente da proposta
---     só acessa pelo servidor, que valida o token e usa a service_role.
---   * authenticated (prestador/admin logado): só as linhas permitidas pelas políticas abaixo.
---   * service_role (servidor): ignora RLS, mas continua sujeita aos triggers da 0004.
--- =============================================================================
+-- anon não acessa nenhuma tabela: o cliente da proposta passa pelo servidor.
+-- service_role ignora o RLS, mas continua sujeita aos triggers.
 
--- RLS ligado em todas as tabelas. Sem política = sem acesso.
 alter table public.profiles          enable row level security;
 alter table public.templates         enable row level security;
 alter table public.propostas         enable row level security;
@@ -17,36 +9,27 @@ alter table public.aceites           enable row level security;
 alter table public.auditoria_eventos enable row level security;
 alter table public.otp_codigos       enable row level security;
 
--- Defesa em profundidade: além do RLS, tiramos os privilégios que não fazem sentido.
--- O Supabase concede tudo a anon/authenticated por padrão; aqui restringimos.
+-- Defesa em profundidade: tira os privilégios que o Supabase concede por padrão.
 revoke all on all tables in schema public from anon;
 revoke truncate, references, trigger on all tables in schema public from authenticated;
-revoke all on public.otp_codigos from authenticated;                       -- só o servidor
-revoke insert, update, delete on public.aceites from authenticated;          -- só o servidor grava
+revoke all on public.otp_codigos from authenticated;
+revoke insert, update, delete on public.aceites from authenticated;  -- só o servidor grava
 revoke insert, update, delete on public.auditoria_eventos from authenticated;
-revoke insert, delete on public.profiles from authenticated;                -- perfil nasce por trigger
+revoke insert, delete on public.profiles from authenticated;
 
--- Funções internas de trigger não devem ser chamadas pela API.
 revoke execute on function public.gerar_codigo_comprovante() from anon, authenticated, public;
 revoke execute on function public.handle_new_user() from anon, authenticated, public;
 revoke execute on function public.handle_user_email_change() from anon, authenticated, public;
 
--- -----------------------------------------------------------------------------
--- profiles
--- -----------------------------------------------------------------------------
 create policy "perfil: ver o próprio; admin vê todos"
   on public.profiles for select to authenticated
   using (id = (select auth.uid()) or (select public.is_admin()));
 
--- O trigger proteger_perfil limita QUAIS colunas cada um pode mudar.
 create policy "perfil: editar o próprio; admin edita status de outros"
   on public.profiles for update to authenticated
   using (id = (select auth.uid()) or (select public.is_admin()))
   with check (id = (select auth.uid()) or (select public.is_admin()));
 
--- -----------------------------------------------------------------------------
--- templates
--- -----------------------------------------------------------------------------
 create policy "templates: ver globais ativos e os próprios; admin vê todos"
   on public.templates for select to authenticated
   using (
@@ -80,10 +63,7 @@ create policy "templates: apagar os próprios; admin apaga globais"
     or (dono_id is null and (select public.is_admin()))
   );
 
--- -----------------------------------------------------------------------------
--- propostas — só o dono. O admin NÃO lê propostas (só contagens, via função abaixo).
--- Conta suspensa continua podendo LER (histórico), mas não cria nem altera.
--- -----------------------------------------------------------------------------
+-- O admin não lê propostas (só contagens). Conta suspensa lê o histórico, mas não cria nem altera.
 create policy "propostas: dono vê as suas"
   on public.propostas for select to authenticated
   using (prestador_id = (select auth.uid()));
@@ -105,9 +85,6 @@ create policy "propostas: apagar só rascunho"
     and (select public.is_active_prestador())
   );
 
--- -----------------------------------------------------------------------------
--- proposta_versoes — herda o dono da proposta. Imutabilidade garantida por trigger.
--- -----------------------------------------------------------------------------
 create function public.eh_dono_da_proposta(p_proposta_id uuid)
 returns boolean
 language sql
@@ -138,9 +115,7 @@ create policy "versoes: dono ativo apaga rascunho"
   on public.proposta_versoes for delete to authenticated
   using ((select public.eh_dono_da_proposta(proposta_id)) and (select public.is_active_prestador()));
 
--- -----------------------------------------------------------------------------
--- aceites e auditoria — o dono só LÊ. Gravação só pelo servidor (service_role).
--- -----------------------------------------------------------------------------
+-- O dono só lê; só o servidor grava.
 create policy "aceites: dono da proposta vê"
   on public.aceites for select to authenticated
   using (
@@ -154,12 +129,9 @@ create policy "auditoria: dono da proposta vê"
   on public.auditoria_eventos for select to authenticated
   using ((select public.eh_dono_da_proposta(proposta_id)));
 
--- otp_codigos: RLS ligado e nenhuma política → inacessível pela API.
+-- otp_codigos: sem política, inacessível pela API.
 
--- -----------------------------------------------------------------------------
--- View com o status "efetivo": 'expirada' calculada na leitura (decisão aprovada).
--- security_invoker = true → a view respeita o RLS de quem consulta.
--- -----------------------------------------------------------------------------
+-- security_invoker: a view respeita o RLS de quem consulta.
 create view public.propostas_situacao
 with (security_invoker = true) as
 select
@@ -174,10 +146,7 @@ from public.propostas p;
 revoke all on public.propostas_situacao from anon;
 grant select on public.propostas_situacao to authenticated;
 
--- -----------------------------------------------------------------------------
--- Painel do admin: lista de prestadores com contagens, SEM expor o conteúdo das propostas.
 -- SECURITY DEFINER para contar além do RLS, mas a primeira coisa que faz é exigir admin.
--- -----------------------------------------------------------------------------
 create function public.admin_resumo_prestadores()
 returns table (
   id uuid,

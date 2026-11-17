@@ -2,23 +2,11 @@ import { z } from "zod";
 
 import { flattenIssues } from "@/lib/validation/errors";
 
-/*
- * Conteúdo do aceite de ENTREGA (propostas.tipo = 'entrega'): o prestador declara o que entregou
- * (resumo + checklist) e anexa fotos; o cliente confirma o recebimento.
- *
- * Mesma lógica de dois níveis da proposta: ao SALVAR o rascunho vale a leitura tolerante
- * (`normalizarEntrega`, nunca perde o que foi digitado); ao ENVIAR vale o schema estrito.
- *
- * As FOTOS ficam no bucket privado `entregas` (<prestador_id>/<proposta_id>/<uuid>.ext). No
- * rascunho o conteúdo guarda só {path, nome}. No ENVIO o servidor baixa cada arquivo, confere o
- * tipo pelos primeiros bytes e grava o SHA-256 dele dentro do documento selado: o hash da versão
- * passa a cobrir também o conteúdo das fotos (trocar uma foto muda o hash).
- */
+// No envio, o servidor grava o SHA-256 de cada foto no documento: o hash da versão cobre as fotos.
 
 export const FOTOS_MAX = 6;
 export const CHECKLIST_MAX = 30;
 export const VALIDADE_ENTREGA_PADRAO_DIAS = 15;
-/** Limite por foto depois da compressão no navegador. O bucket aceita até 5 MB; o PDF embute as fotos. */
 export const FOTO_BYTES_MAX = 2 * 1024 * 1024;
 
 export const TIPOS_IMAGEM = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -32,17 +20,14 @@ export const EXTENSAO: Record<TipoImagem, string> = {
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const CAMINHO_FOTO = new RegExp(`^(${UUID})/(${UUID})/${UUID}\\.(jpg|png|webp)$`);
 
-/**
- * A foto só vale se estiver na pasta DESTE prestador e DESTA entrega. Quem lê o caminho de um
- * documento (página do cliente, PDF) só assina URL de arquivos que passam nesta conferência:
- * impede que um caminho forjado exponha o arquivo de outra pessoa.
- */
+// Só vale na pasta deste prestador e desta entrega: um caminho forjado não pode expor
+// o arquivo de outra pessoa.
 export function caminhoFotoValido(path: string, prestadorId: string, propostaId: string): boolean {
   const m = CAMINHO_FOTO.exec(path);
   return !!m && m[1] === prestadorId && m[2] === propostaId;
 }
 
-/** Identifica o tipo pelos primeiros bytes (não confia na extensão nem no Content-Type). */
+// Pelos bytes, não pela extensão nem pelo Content-Type.
 export function tipoPelosBytes(b: Uint8Array): TipoImagem | null {
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
   if (
@@ -66,13 +51,9 @@ export function tipoPelosBytes(b: Uint8Array): TipoImagem | null {
   return null;
 }
 
-/* ------------------------------ Tipos ------------------------------ */
-
 export type FotoEntrega = {
   path: string;
-  /** Nome original do arquivo, só para exibir. */
   nome: string;
-  /** Só em versão ENVIADA: preenchidos pelo servidor no envio. */
   sha256?: string;
   bytes?: number;
   tipo?: TipoImagem;
@@ -96,8 +77,6 @@ export function entregaVazia(): ConteudoEntrega {
     validade_dias: VALIDADE_ENTREGA_PADRAO_DIAS,
   };
 }
-
-/* ----------------------------- Estrito ----------------------------- */
 
 const texto = (min: number, max: number, mensagem: string) =>
   z.string().trim().min(min, mensagem).max(max, `Use no máximo ${max} caracteres.`);
@@ -129,7 +108,6 @@ export const entregaSchema = z
   })
   .strict();
 
-/** O que o servidor sela no envio: as fotos ganham SHA-256, tamanho e tipo conferidos por ele. */
 export const entregaSeladaSchema = entregaSchema.extend({
   fotos: z
     .array(
@@ -145,18 +123,10 @@ export const entregaSeladaSchema = entregaSchema.extend({
 
 export type EntregaSelada = z.infer<typeof entregaSeladaSchema>;
 
-/* ----------------------- Leitura tolerante ----------------------- */
-
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
-/**
- * Lê o jsonb (banco ou navegador) no formato do rascunho, sem nunca lançar: campo fora do formato
- * vira vazio, e chaves desconhecidas são descartadas. Os limites são cobrados pela validação e
- * pelo servidor, que recusa gravar em vez de truncar. Os dados do selo (sha256, bytes, tipo) são
- * mantidos só quando completos e válidos.
- */
 export function normalizarEntrega(entrada: unknown): ConteudoEntrega {
   const raw = isRecord(entrada) ? entrada : {};
 
@@ -196,12 +166,10 @@ export function normalizarEntrega(entrada: unknown): ConteudoEntrega {
   };
 }
 
-/** Tira os dados do selo das fotos (uma NOVA versão recalcula tudo no envio). */
 export function semSelo(c: ConteudoEntrega): ConteudoEntrega {
   return { ...c, fotos: c.fotos.map(({ path, nome }) => ({ path, nome })) };
 }
 
-/** Erros por campo para o editor e para o envio (vazio = pode enviar). */
 export function validarEntrega(conteudo: ConteudoEntrega): Record<string, string> {
   const r = entregaSchema.safeParse(
     normalizarEntrega({

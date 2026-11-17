@@ -4,11 +4,7 @@ import { STATUS_ORDER, type PropostaStatus } from "@/lib/status";
 
 export const PAGE_SIZE = 15;
 
-/**
- * Limpa o texto da busca antes de entrar num filtro do PostgREST (`or=(titulo.ilike.%x%,...)`).
- * Vírgula, parênteses, aspas e outros símbolos têm significado na sintaxe do filtro, e `%` e
- * `_` são curingas do LIKE: ficam só letras (com acento), números, espaço e hífen.
- */
+// Vírgula, parênteses e aspas têm significado no filtro do PostgREST; % e _ são curingas do LIKE.
 export function limparBusca(texto: unknown): string {
   if (typeof texto !== "string") return "";
   return texto
@@ -27,7 +23,6 @@ export type FiltrosListagem = {
 
 const statusSchema = z.enum(STATUS_ORDER as [PropostaStatus, ...PropostaStatus[]]);
 
-/** Lê e valida os parâmetros da URL: valor estranho vira o padrão, nunca um erro. */
 export function lerFiltros(params: Record<string, string | string[] | undefined>): FiltrosListagem {
   const um = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const status = statusSchema.safeParse(um(params.status));
@@ -39,7 +34,6 @@ export function lerFiltros(params: Record<string, string | string[] | undefined>
   };
 }
 
-/** Monta a URL da listagem preservando os filtros (usada pelos chips e pela paginação). */
 export function urlListagem(base: string, f: Partial<FiltrosListagem>): string {
   const sp = new URLSearchParams();
   if (f.q) sp.set("q", f.q);

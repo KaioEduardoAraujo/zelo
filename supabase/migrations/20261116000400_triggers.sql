@@ -1,15 +1,8 @@
--- =============================================================================
--- Zelo · 0004 · Funções e triggers de integridade
---
--- Por que triggers e não só RLS?
---   * A chave service_role (usada pelo servidor nas rotas públicas) IGNORA o RLS.
---   * Triggers valem para TODOS os papéis, inclusive service_role. Então, mesmo com um bug
---     no código do servidor, um aceite gravado não pode ser alterado nem apagado.
--- =============================================================================
+-- Triggers valem até para a service_role, que ignora o RLS: um aceite gravado não pode ser
+-- alterado nem apagado, nem por um bug no servidor.
 
--- Verdadeiro quando a operação vem de um usuário final via API (prestador/admin logado ou
--- visitante anônimo), e não do servidor (service_role) ou de uma migration (postgres).
--- Funciona porque o PostgREST executa cada requisição com SET ROLE authenticated/anon.
+-- Usuário final via API (o PostgREST usa SET ROLE authenticated/anon), e não o servidor nem
+-- uma migration.
 create function public.eh_usuario_final()
 returns boolean
 language sql
@@ -19,8 +12,8 @@ as $$
   select current_user in ('authenticated', 'anon');
 $$;
 
--- Papel do usuário logado. SECURITY DEFINER para ler profiles sem cair na própria RLS
--- (evita recursão infinita nas políticas). search_path vazio evita sequestro de funções.
+-- SECURITY DEFINER para ler profiles sem recursão no RLS; search_path vazio evita sequestro de
+-- funções.
 create function public.is_admin()
 returns boolean
 language sql
@@ -47,11 +40,7 @@ as $$
   );
 $$;
 
--- -----------------------------------------------------------------------------
--- 1. Cadastro: cria o perfil automaticamente.
--- O papel é SEMPRE 'prestador': os metadados do cadastro vêm do navegador e não são
--- confiáveis, então um "role": "admin" enviado no signUp é simplesmente ignorado.
--- -----------------------------------------------------------------------------
+-- O papel é sempre prestador: um "role" enviado no cadastro é ignorado.
 create function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -84,7 +73,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Mantém profiles.email igual ao e-mail de login.
 create function public.handle_user_email_change()
 returns trigger
 language plpgsql
@@ -102,10 +90,7 @@ create trigger on_auth_user_email_changed
   for each row when (old.email is distinct from new.email)
   execute function public.handle_user_email_change();
 
--- -----------------------------------------------------------------------------
--- 2. Perfil: o prestador edita só nome, telefone e empresa.
--- role nunca muda pela API; ativo só muda por um admin (e não no próprio perfil).
--- -----------------------------------------------------------------------------
+-- role nunca muda pela API; ativo só muda por um admin, e não no próprio perfil.
 create function public.proteger_perfil()
 returns trigger
 language plpgsql
@@ -117,7 +102,7 @@ begin
   end if;
 
   if not public.eh_usuario_final() then
-    return new; -- servidor/migrations (ex.: seed do admin, sincronizar e-mail)
+    return new;
   end if;
 
   if new.role <> old.role then
@@ -133,7 +118,6 @@ begin
     end if;
   end if;
 
-  -- Admin mexendo no perfil de outra pessoa: só pode mudar `ativo`.
   if new.id <> auth.uid()
      and (new.nome, new.telefone, new.empresa_nome)
          is distinct from (old.nome, old.telefone, old.empresa_nome) then
@@ -148,9 +132,7 @@ create trigger proteger_perfil
   before update on public.profiles
   for each row execute function public.proteger_perfil();
 
--- -----------------------------------------------------------------------------
--- 3. Tabelas APPEND-ONLY: aceites e auditoria_eventos.
--- -----------------------------------------------------------------------------
+-- Append-only: aceites e auditoria_eventos.
 create function public.bloquear_alteracao()
 returns trigger
 language plpgsql
@@ -177,7 +159,7 @@ create trigger auditoria_sem_truncate
   before truncate on public.auditoria_eventos
   for each statement execute function public.bloquear_alteracao();
 
--- TRUNCATE também ignora RLS e triggers de linha; bloqueamos nas tabelas que guardam provas.
+-- TRUNCATE ignora triggers de linha: bloqueado nas tabelas de prova.
 create trigger versoes_sem_truncate
   before truncate on public.proposta_versoes
   for each statement execute function public.bloquear_alteracao();
@@ -185,7 +167,7 @@ create trigger propostas_sem_truncate
   before truncate on public.propostas
   for each statement execute function public.bloquear_alteracao();
 
--- Horário do registro é sempre o do banco: nem o servidor consegue "voltar no tempo".
+-- Horário sempre do banco.
 create function public.forcar_criado_em()
 returns trigger
 language plpgsql
@@ -201,9 +183,6 @@ create trigger auditoria_criado_em
   before insert on public.auditoria_eventos
   for each row execute function public.forcar_criado_em();
 
--- -----------------------------------------------------------------------------
--- 4. Versões: nascem como rascunho, em sequência, e ficam imutáveis depois de enviadas.
--- -----------------------------------------------------------------------------
 create function public.validar_nova_versao()
 returns trigger
 language plpgsql
@@ -213,7 +192,7 @@ declare
   v_status public.proposta_status;
   v_proximo integer;
 begin
-  -- Trava a linha da proposta para duas versões não ganharem o mesmo número ao mesmo tempo.
+  -- Trava a proposta para duas versões não ganharem o mesmo número.
   select status into v_status from public.propostas where id = new.proposta_id for update;
 
   if v_status = 'aceita' then
@@ -230,8 +209,8 @@ begin
   select coalesce(max(numero), 0) + 1 into v_proximo
   from public.proposta_versoes where proposta_id = new.proposta_id;
 
-  new.numero := v_proximo;      -- número é sempre o próximo, ignorando o que veio da aplicação
-  new.enviada_em := null;       -- toda versão nasce como rascunho
+  new.numero := v_proximo;
+  new.enviada_em := null;
   new.hash_sha256 := null;
   new.criado_em := now();
   return new;
@@ -242,7 +221,6 @@ create trigger validar_nova_versao
   before insert on public.proposta_versoes
   for each row execute function public.validar_nova_versao();
 
--- Nova versão vira a atual e a proposta volta para rascunho até ser enviada de novo.
 create function public.apontar_versao_atual()
 returns trigger
 language plpgsql
@@ -288,9 +266,6 @@ create trigger proteger_versao_enviada
   before update or delete on public.proposta_versoes
   for each row execute function public.proteger_versao_enviada();
 
--- -----------------------------------------------------------------------------
--- 5. Propostas: nascem como rascunho; vínculo com a proposta pai é validado.
--- -----------------------------------------------------------------------------
 create function public.validar_nova_proposta()
 returns trigger
 language plpgsql
@@ -326,13 +301,8 @@ create trigger validar_nova_proposta
   before insert on public.propostas
   for each row execute function public.validar_nova_proposta();
 
--- Regras de alteração da proposta:
---   * dono, tipo e vínculo nunca mudam;
---   * dados do cliente e título só mudam em rascunho;
---   * 'rascunho' <=> versão atual ainda não enviada; 'enviada' exige versão atual enviada;
---   * aceita/recusada/ajuste só existem se houver o registro correspondente em `aceites`
---     (o prestador não consegue "forjar" um aceite mudando o status);
---   * o prestador (usuário final) só move o status para rascunho ou enviada.
+-- aceita/recusada/ajuste só existem com o registro em aceites: o prestador não forja um aceite
+-- mudando o status.
 create function public.proteger_proposta()
 returns trigger
 language plpgsql
@@ -403,9 +373,7 @@ create trigger proteger_proposta
   before update on public.propostas
   for each row execute function public.proteger_proposta();
 
--- -----------------------------------------------------------------------------
--- 6. Aceite: só para a versão atual, enviada, dentro da validade e com o hash certo.
--- -----------------------------------------------------------------------------
+-- Aceite só para a versão atual, enviada, na validade e com o hash certo.
 create function public.validar_aceite()
 returns trigger
 language plpgsql
@@ -432,7 +400,6 @@ begin
   if v.validade_em < now() then
     raise exception 'proposta expirada' using errcode = '23514';
   end if;
-  -- O hash gravado no aceite precisa ser exatamente o da versão: é o elo da prova.
   if new.hash_documento <> v.hash_sha256 then
     raise exception 'hash do documento não confere com a versão enviada' using errcode = '23514';
   end if;

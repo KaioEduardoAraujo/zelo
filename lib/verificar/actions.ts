@@ -10,31 +10,19 @@ import { createServiceClient } from "@/lib/supabase/service";
 import type { TipoDocumento } from "@/lib/tipos";
 import { verificacaoSchema } from "@/lib/verificar/schemas";
 
-/*
- * Verificação pública de um comprovante (/verificar). Qualquer pessoa com o código pode
- * conferir: por isso a resposta mostra só o necessário para a prova (resultado, data, prestador,
- * versão e hash) e NUNCA o nome, CPF ou e-mail do cliente (LGPD).
- *
- * O que é conferido:
- *  1. O hash recalculado AGORA a partir do conteúdo guardado da versão é igual ao gravado no
- *     envio, e igual ao repetido no aceite → "Documento íntegro".
- *  2. (Opcional) O SHA-256 do PDF que a pessoa tem é igual ao do PDF guardado pelo Zelo → o
- *     arquivo é o original, sem edição.
- */
+// Mostra só o necessário para a prova; nada do cliente (LGPD).
 
 export type EstadoArquivo = "confere" | "diferente" | "sem_original" | "nao_enviado";
 
 export type VerificacaoResultado =
   | {
       estado: "integro" | "divergente";
-      /** Proposta, aditivo ou entrega. */
       tipo: TipoDocumento;
       resultado: "aceito" | "recusado" | "ajuste";
       registradoEm: string;
       prestador: string;
       versao: number;
       hash: string;
-      /** sem_original = o PDF ainda não foi guardado; nao_enviado = a pessoa não mandou arquivo. */
       arquivo: EstadoArquivo;
     }
   | { estado: "nao_encontrado" }
@@ -42,7 +30,7 @@ export type VerificacaoResultado =
 
 export async function verificarComprovante(entrada: unknown): Promise<VerificacaoResultado> {
   const origem = await origemDaRequisicao();
-  // O código tem 32⁸ combinações; o limite por IP torna inviável sair testando códigos.
+  // 32⁸ combinações + limite por IP: inviável sair testando códigos.
   if (!(await dentroDoLimite("verificar", origem.ip, 20, 600))) {
     return { estado: "erro", message: "Muitas consultas seguidas. Espere alguns minutos." };
   }

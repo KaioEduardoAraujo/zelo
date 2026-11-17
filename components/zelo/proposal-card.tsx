@@ -7,20 +7,14 @@ import { textosDe, type TipoDocumento } from "@/lib/tipos";
 
 export type ProposalSummary = {
   id: string;
-  /** Aditivo e entrega aparecem com um rótulo; proposta (o padrão) não. */
   tipo?: TipoDocumento;
   titulo: string;
   clienteNome: string;
   valorCentavos: number | null;
   status: PropostaStatus;
-  /** Data da última movimentação (criação, envio ou resposta). */
   atualizadoEm: string;
 };
 
-/**
- * Cartão de proposta da listagem no mobile (DESIGN.md 6): cliente, título, valor em destaque,
- * status e data relativa. O cartão inteiro é o link (alvo de toque grande).
- */
 export function ProposalCard({ proposal, now }: { proposal: ProposalSummary; now?: Date }) {
   return (
     <Link

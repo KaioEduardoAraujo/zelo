@@ -16,11 +16,8 @@ import { codigoSchema, respostaSchema } from "@/lib/publico/schemas";
 import { createServiceClient } from "@/lib/supabase/service";
 import { flattenIssues } from "@/lib/validation/errors";
 
-/*
- * Ações da página pública. NÃO há sessão: cada chamada recebe o token do link e o valida de
- * novo no servidor. Tudo o que vem do navegador (nome, CPF, ação, código) passa pelo Zod, e o
- * texto de consentimento gravado é montado AQUI, não recebido do navegador.
- */
+// Sem sessão: cada chamada valida o token de novo. O texto de consentimento é montado aqui,
+// nunca recebido do navegador.
 
 const MINUTOS_CODIGO = 10;
 const MUITAS = "Muitas tentativas seguidas. Espere alguns minutos e tente de novo.";
@@ -30,7 +27,7 @@ const INDISPONIVEL =
 const prestadorDoDocumento = (p: PropostaPublica) =>
   p.prestadorDocumento.empresa || p.prestadorDocumento.nome;
 
-/** Chamada pelo navegador depois que a página abre (robôs de prévia de link não rodam JS). */
+// Chamada pelo navegador: robôs de prévia de link não rodam JS e não contam como abertura.
 export async function registrarAbertura(token: string): Promise<void> {
   const origem = await origemDaRequisicao();
   if (!(await dentroDoLimite("abrir", origem.ip, 60, 600))) return;
@@ -49,7 +46,6 @@ export type EnviarCodigoResultado =
   | { ok: true; emailMascarado: string; expiraEm: string }
   | { ok: false; message: string; erros?: Record<string, string>; indisponivel?: boolean };
 
-/** Valida os dados, gera o código, guarda só o hash dele e envia por e-mail ao cliente. */
 export async function enviarCodigo(
   token: string,
   entrada: unknown,
@@ -108,7 +104,7 @@ export async function enviarCodigo(
       }),
     });
   } catch {
-    // Sem detalhes do erro na tela nem no console: podem conter o endereço de e-mail.
+    // O erro do provedor pode conter o e-mail: não vai para a tela nem para o log.
     return {
       ok: false,
       message: "Não conseguimos enviar o e-mail agora. Tente de novo em instantes.",
@@ -134,12 +130,10 @@ export type ResponderResultado =
       ok: false;
       message: string;
       erros?: Record<string, string>;
-      /** O código atual não serve mais: é preciso pedir outro. */
       novoCodigo?: boolean;
       indisponivel?: boolean;
     };
 
-/** Confere o código e registra a resposta (aceite, recusa ou ajuste), tudo numa transação. */
 export async function responderProposta(
   token: string,
   entrada: unknown,
@@ -195,9 +189,7 @@ export async function responderProposta(
 
   switch (data.r_status) {
     case "ok":
-      // O aceite já está gravado e vale. O PDF e os e-mails ficam para DEPOIS da resposta
-      // (after): o cliente não espera a geração, e uma falha aqui não desfaz o aceite. Se o PDF
-      // não ficar pronto a tempo, o download o gera na hora (garantirComprovante).
+      // PDF e e-mails depois da resposta: o aceite já vale e uma falha aqui não o desfaz.
       if (acao === "aceito" && data.r_aceite_id) {
         const aceiteId = data.r_aceite_id;
         after(() => processarAceite(aceiteId));

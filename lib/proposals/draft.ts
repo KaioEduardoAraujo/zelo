@@ -10,10 +10,6 @@ import {
 } from "@/lib/validation/proposta";
 import { flattenIssues } from "@/lib/validation/errors";
 
-/*
- * Lógica pura dos rascunhos (sem banco, sem React): roda no servidor, no navegador e nos testes.
- */
-
 export type Etapa = 1 | 2 | 3 | 4;
 
 export const ETAPAS: { numero: Etapa; titulo: string; curto: string }[] = [
@@ -23,11 +19,9 @@ export const ETAPAS: { numero: Etapa; titulo: string; curto: string }[] = [
   { numero: 4, titulo: "Revisar", curto: "Revisar" },
 ];
 
-/** Estado do formulário inteiro (dados do cliente + conteúdo da versão). */
 export type DraftForm = {
   clienteNome: string;
   clienteEmail: string;
-  /** Só dígitos, com DDD. */
   clienteTelefone: string;
   titulo: string;
   conteudo: ConteudoRascunho;
@@ -52,18 +46,8 @@ const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const num = (v: unknown, padrao: number) =>
   typeof v === "number" && Number.isFinite(v) ? v : padrao;
 
-/**
- * Normaliza o conteúdo (vindo do navegador, do banco ou de um template) para o formato do
- * rascunho: apara textos, descarta exclusões vazias, limita a quantidade a 2 casas e RECALCULA
- * o total a partir dos itens — o total que vem de fora nunca é confiável.
- *
- * É TOLERANTE de propósito: um campo fora do limite não pode fazer o resto sumir (o autosave
- * apagaria o trabalho da pessoa). Com `manterExclusoesVazias`, linhas em branco continuam na lista:
- * usado só para validar, para que o índice do erro bata com a linha que a pessoa vê na tela.
- * Os limites são cobrados pela validação (que mostra a mensagem
- * no campo) e pelo servidor (que recusa gravar em vez de truncar). Chaves desconhecidas são
- * descartadas: o jsonb gravado, e depois o hash, só contém os campos conhecidos.
- */
+// Tolerante de propósito: um campo fora do limite não pode apagar o resto do rascunho.
+// O total é sempre recalculado e chaves desconhecidas são descartadas.
 export function normalizarConteudo(
   entrada: unknown,
   manterExclusoesVazias = false,
@@ -102,7 +86,6 @@ const dadosCliente = (f: DraftForm): Cliente => ({
   titulo: f.titulo,
 });
 
-/** Erros por campo de cada etapa (vazio = pode avançar). */
 export function validarEtapa(etapa: Etapa, form: DraftForm): Erros {
   const conteudo = normalizarConteudo(form.conteudo, true);
   if (etapa === 1) {
@@ -120,7 +103,6 @@ export function validarEtapa(etapa: Etapa, form: DraftForm): Erros {
   return validarTudo(form);
 }
 
-/** Validação completa (etapa 4 e envio): cliente + conteúdo no formato estrito. */
 export function validarTudo(form: DraftForm): Erros {
   const erros: Erros = {};
   const cliente = clienteSchema.safeParse(dadosCliente(form));
@@ -130,7 +112,6 @@ export function validarTudo(form: DraftForm): Erros {
   return erros;
 }
 
-/** Validação do editor de modelos: nome + conteúdo completo (um modelo nasce pronto para usar). */
 export function validarModelo(titulo: string, conteudo: ConteudoRascunho): Erros {
   const erros: Erros = {};
   const nome = titulo.trim();
@@ -141,7 +122,6 @@ export function validarModelo(titulo: string, conteudo: ConteudoRascunho): Erros
   return erros;
 }
 
-/** Em qual etapa o assistente deve abrir para corrigir um erro. */
 export function etapaDoCampo(campo: string): Etapa {
   if (campo.startsWith("cliente.")) return 1;
   if (campo.startsWith("escopo") || campo.startsWith("itens") || campo.startsWith("exclusoes")) {

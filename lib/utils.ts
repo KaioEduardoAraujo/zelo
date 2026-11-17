@@ -1,14 +1,7 @@
 import { createCn } from "cn/config";
 
-/*
- * `cn` = junta classes e resolve conflitos (a última vence), no padrão do shadcn/ui.
- *
- * As classes de tipografia da Zelo (text-h1, text-support…, definidas em app/globals.css) são
- * TAMANHOS de fonte. Sem avisar isso, o motor acha que `text-h1` é uma COR (tudo que começa
- * com `text-` e não conhece) e descarta o tamanho quando há uma cor junto:
- *   cn("text-h1 text-navy-950")  →  "text-navy-950"   (título sem tamanho nenhum)
- * Registrá-las como "font-size" corrige o conflito: tamanho e cor convivem.
- */
+// text-h1, text-support… são tamanhos de fonte. Sem registrá-los, o merge os trata como cor
+// e descarta o tamanho quando há uma cor junto.
 export const cn = createCn({
   extend: {
     classGroups: {

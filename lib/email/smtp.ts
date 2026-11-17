@@ -4,11 +4,6 @@ import nodemailer from "nodemailer";
 
 import type { EmailProvider } from "@/lib/email/types";
 
-/**
- * SMTP (ex.: Gmail com "senha de app", ou o Mailpit do Supabase local).
- * Alternativa ao Resend para quando não há domínio verificado: o Resend sem domínio só
- * entrega para o e-mail do dono da conta (PROMPT-INICIAL, seção 5).
- */
 export function criarSmtp(cfg: {
   host: string;
   port: number;

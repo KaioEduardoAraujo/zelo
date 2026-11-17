@@ -4,10 +4,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { anonClient, criarUsuario, serviceClient, type Usuario } from "./helpers";
 
-/*
- * Fase 7: o bucket `comprovantes` é privado. Só o servidor (service_role) grava; o prestador lê
- * apenas os arquivos da pasta dele (<prestador_id>/...); visitante sem login não lê nada.
- */
 let a: Usuario;
 let b: Usuario;
 const caminho = () => `${a.id}/${randomUUID()}.pdf`;

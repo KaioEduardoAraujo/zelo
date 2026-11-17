@@ -4,7 +4,6 @@ import { AcceptanceStamp } from "@/components/zelo/acceptance-stamp";
 import { formatCentavos, formatDateTime, maskCpf } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// Dados de exemplo realistas (DESIGN.md 9): nada de "John Doe".
 const sample = {
   code: "ZL-4K7Q-92MD",
   title: "Reforma do banheiro",
@@ -18,7 +17,6 @@ const sample = {
   hash: "3ef347c9e2d8a87969909bdcdb03290b7481db6a936731f798db08d1c7b4013b",
 };
 
-/** Comprovante de exemplo: o documento é o herói da página (DESIGN.md 1.1). */
 export function ReceiptPreview({ className }: { className?: string }) {
   return (
     <figure
@@ -28,7 +26,6 @@ export function ReceiptPreview({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Corte diagonal: motivo gráfico derivado da diagonal do símbolo (45°). */}
       <span
         aria-hidden="true"
         className="absolute top-0 right-0 size-24 bg-teal-500 [clip-path:polygon(55%_0,100%_0,100%_45%)]"

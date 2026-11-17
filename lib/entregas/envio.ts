@@ -9,12 +9,6 @@ import {
 } from "@/lib/validation/entrega";
 import { flattenIssues } from "@/lib/validation/errors";
 
-/*
- * Documento selado do aceite de ENTREGA (lógica pura, sem banco): mesmo desenho da proposta
- * (conteúdo + retrato das partes + identidade do registro, D52), mais a referência à proposta
- * original e as fotos com o SHA-256 conferido pelo servidor.
- */
-
 export type DocumentoEntrega = EntregaSelada & {
   proposta_id: string;
   versao: number;
@@ -41,10 +35,8 @@ export type PrepararEntregaEntrada = {
   clienteTelefone: string | null;
   prestadorNome: string;
   prestadorEmpresa: string | null;
-  /** jsonb da versão em rascunho, como está no banco. */
   conteudo: unknown;
   referencia: Referencia;
-  /** Fotos já conferidas pelo servidor (mesma ordem e mesmos caminhos do rascunho). */
   fotosSeladas: FotoSeladaEntrada[];
 };
 
@@ -66,7 +58,6 @@ export function prepararDocumentoEntrega(e: PrepararEntregaEntrada): PrepararEnt
   if (!cliente.success) Object.assign(erros, { form: "Os dados do cliente estão incompletos." });
   if (Object.keys(erros).length > 0 || !cliente.success) return { ok: false, erros };
 
-  // As fotos seladas precisam ser exatamente as do rascunho, na mesma ordem.
   const mesmas =
     e.fotosSeladas.length === conteudo.fotos.length &&
     e.fotosSeladas.every((f, i) => f.path === conteudo.fotos[i].path);

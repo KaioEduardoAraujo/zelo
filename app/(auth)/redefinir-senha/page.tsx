@@ -9,7 +9,7 @@ import { ResetPasswordForm } from "./reset-password-form";
 export const metadata: Metadata = { title: "Nova senha" };
 
 export default async function ResetPasswordPage() {
-  // A sessão de recuperação foi criada em /auth/confirm a partir do link do e-mail.
+  // A sessão de recuperação foi criada em /auth/confirm.
   const supabase = await createClient();
   const {
     data: { user },

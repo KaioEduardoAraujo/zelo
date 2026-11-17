@@ -3,11 +3,6 @@ import { Check } from "lucide-react";
 import { ETAPAS, type Etapa } from "@/lib/proposals/draft";
 import { cn } from "@/lib/utils";
 
-/**
- * Indicador de etapas (DESIGN.md 8: "progresso visível"). As etapas SÃO uma sequência, por isso
- * a numeração faz sentido aqui. Só dá para voltar a uma etapa anterior; avançar é pelo botão
- * "Continuar", que valida antes.
- */
 export function Stepper({
   atual,
   onIr,
@@ -20,7 +15,6 @@ export function Stepper({
   const info = ETAPAS[atual - 1];
   return (
     <nav aria-label="Etapas da proposta" className={className}>
-      {/* Mobile: texto + barra segmentada */}
       <div className="md:hidden">
         <p className="text-support text-slate-600">
           Etapa {atual} de {ETAPAS.length}
@@ -39,7 +33,6 @@ export function Stepper({
         </div>
       </div>
 
-      {/* Desktop: lista com as 4 etapas */}
       <ol className="hidden items-center gap-2 md:flex">
         {ETAPAS.map((e, i) => {
           const concluida = e.numero < atual;

@@ -1,15 +1,4 @@
-/*
- * Cria (ou promove) o usuário administrador.
- *
- *   npm run db:seed-admin        → usa .env.local
- *
- * Variáveis: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- *            SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD (mín. 12 caracteres).
- *
- * Por que não no seed.sql? A senha ficaria em texto puro num arquivo versionado.
- * Aqui ela vem do ambiente e vai direto para o Supabase Auth, que guarda só o hash (bcrypt).
- * Idempotente: rodar de novo apenas garante role = admin e ativo = true.
- */
+// Cria ou promove o administrador. A senha vem do ambiente, não de um arquivo versionado.
 import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -58,7 +47,7 @@ if (!userId) {
   console.log("Usuário já existia; garantindo o papel de administrador.");
 }
 
-// O perfil foi criado pelo trigger como 'prestador'; só o servidor pode promovê-lo.
+// O trigger cria o perfil como prestador; só o servidor pode promovê-lo.
 const { error } = await supabase
   .from("profiles")
   .update({ role: "admin", ativo: true })

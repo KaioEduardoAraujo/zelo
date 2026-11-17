@@ -1,14 +1,5 @@
--- =============================================================================
--- Zelo · 0011 · ping() para o keep-alive (Fase 10)
---
--- O plano gratuito do Supabase pausa o projeto depois de ~7 dias sem uso. Um agendamento do
--- GitHub Actions chama esta função a cada 3 dias com a chave PÚBLICA, o que gera uma consulta
--- real no Postgres.
---
--- Por que uma função e não uma tabela? O papel `anon` não tem privilégio em nenhuma tabela
--- (decisão D20). Esta função não lê nem escreve dado algum: só devolve 'ok'. SECURITY INVOKER,
--- sem acesso a tabelas, não abre nada novo para o visitante.
--- =============================================================================
+-- Keep-alive do plano gratuito (GitHub Actions a cada 3 dias, com a chave pública). Não toca
+-- em nenhuma tabela.
 
 create function public.ping()
 returns text

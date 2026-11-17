@@ -1,21 +1,13 @@
 import { cn } from "@/lib/utils";
 
 type AcceptanceStampProps = {
-  /** Data e hora já formatadas (dd/MM/yyyy HH:mm). */
   acceptedAt: string;
-  /** Código curto do comprovante, ex.: ZL-4K7Q-92MD. */
   code: string;
-  /** Desenha o check com a animação de marca (~400ms). Use só na confirmação do aceite. */
   animate?: boolean;
-  /** md: dentro de documentos e listas · lg: tela de sucesso do cliente. */
   size?: "md" | "lg";
   className?: string;
 };
 
-/**
- * Selo de aceite: anel + check, data e código do comprovante.
- * É o elemento mais "da marca" do produto (DESIGN.md 5).
- */
 export function AcceptanceStamp({
   acceptedAt,
   code,

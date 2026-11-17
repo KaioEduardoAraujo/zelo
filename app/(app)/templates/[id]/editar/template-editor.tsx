@@ -24,11 +24,9 @@ type Props = {
   titulo: string;
   nicho: Nicho;
   conteudo: ConteudoRascunho;
-  /** Administrador editando um modelo GLOBAL (volta para /admin/templates). */
   admin?: boolean;
 };
 
-/** Editor de um modelo próprio: mesmos campos do assistente, numa página só, salvo no botão. */
 export function TemplateEditor(props: Props) {
   const voltar = props.admin ? "/admin/templates" : "/templates";
   const router = useRouter();
@@ -52,7 +50,6 @@ export function TemplateEditor(props: Props) {
   );
 
   const salvar = () => {
-    // Linhas de exclusão em branco somem sozinhas antes de validar.
     const limpo = { ...conteudo, exclusoes: conteudo.exclusoes.filter((e) => e.trim() !== "") };
     setConteudo(limpo);
     setTentou(true);

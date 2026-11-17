@@ -1,13 +1,5 @@
-/*
- * Tokens da Zelo (DESIGN.md, seções 3 a 5).
- * Valores conferidos com conta-gotas na logo original:
- *   navy da marca  ≈ #1D3444 → mantido navy-800 #1A3349
- *   teal da marca  ≈ #399E94 → mantido teal-500 #38A095
- *   fundo          ≈ #F1F4F4 → mantido bg #F1F5F5
- * Tudo em variáveis CSS para permitir um tema escuro no futuro (fora do MVP).
- */
+/* Cores conferidas com conta-gotas na logo original. */
 @theme {
-  /* Paleta base */
   --color-navy-950: #0e1d2b;
   --color-navy-900: #12263a;
   --color-navy-800: #1a3349;
@@ -24,7 +16,6 @@
   --color-line: #dce5e6;
   --color-line-strong: #c3d0d2;
 
-  /* Semântica de status: texto / fundo */
   --color-success: #1c7067; /* 5,0:1 sobre success-bg (o #1f7a70 dava 4,4:1, abaixo do AA) */
   --color-success-bg: #ddf1ee;
   --color-warning: #8a5a00;
@@ -36,19 +27,15 @@
   --color-neutral: #52667a;
   --color-neutral-bg: #eaf0f1;
 
-  /* Raios: 8px (controles), 12px (cartões, modais), 999px (badges) */
   --radius-control: 0.5rem;
   --radius-card: 0.75rem;
   --radius-pill: 999px;
 
-  /* Sombras: mínima por padrão; maior só em modal/bottom sheet */
   --shadow-hairline: 0 1px 2px rgb(18 38 58 / 0.06);
   --shadow-overlay: 0 12px 32px rgb(18 38 58 / 0.16);
 
-  /* Movimento */
   --ease-out-zelo: cubic-bezier(0.2, 0.7, 0.2, 1);
   --duration-fast: 150ms;
 
-  /* Largura de leitura de documento */
   --container-doc: 45rem; /* 720px */
 }

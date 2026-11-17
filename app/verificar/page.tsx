@@ -8,11 +8,6 @@ export const metadata: Metadata = {
   description: "Confira a autenticidade de um comprovante emitido pelo Zelo.",
 };
 
-/**
- * Verificação pública (DESIGN.md 7.2.8): qualquer pessoa com o código do comprovante confere se
- * o documento registrado está íntegro e, opcionalmente, se o PDF que tem em mãos é o original.
- * O link do e-mail e do PDF já traz o código em `?codigo=`.
- */
 export default async function VerificarPage(props: PageProps<"/verificar">) {
   const { codigo } = await props.searchParams;
   const codigoInicial = typeof codigo === "string" ? codigo.slice(0, 40) : "";

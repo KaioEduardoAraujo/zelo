@@ -6,9 +6,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// shadcn/ui (Radix) customizado: raio 12px, sombra de modal, overlay navy translúcido,
-// textos em PT-BR. Radix cuida do foco preso, Esc para fechar e aria-modal.
-
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }

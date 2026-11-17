@@ -3,8 +3,6 @@ import { JetBrains_Mono, Manrope } from "next/font/google";
 
 import "./globals.css";
 
-// Manrope: família principal (geométrica, combina com o wordmark).
-// JetBrains Mono: só para hash, códigos, IDs e dados da trilha de auditoria.
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin"],

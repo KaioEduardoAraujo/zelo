@@ -6,13 +6,7 @@ import { publicEnv } from "@/lib/env";
 import type { Database } from "@/lib/supabase/database.types";
 import { serverEnv } from "@/lib/env.server";
 
-/*
- * Cliente com a chave service_role: IGNORA o RLS.
- *
- * Use apenas no servidor e apenas onde não existe usuário logado — as rotas públicas
- * do cliente (/p/[token]), que validam o token antes de qualquer consulta.
- * O "server-only" garante que este módulo nunca entra no bundle do navegador.
- */
+// service_role ignora o RLS: só no servidor e só depois de validar o token.
 export function createServiceClient() {
   return createClient<Database>(
     publicEnv().NEXT_PUBLIC_SUPABASE_URL,

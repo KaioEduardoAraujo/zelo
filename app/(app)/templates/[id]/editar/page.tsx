@@ -13,7 +13,6 @@ export default async function EditarModeloPage(props: PageProps<"/templates/[id]
   const { id } = await props.params;
   const modelo = await carregarModelo(id);
 
-  // Os modelos do Zelo são só para leitura: o caminho é "Duplicar e personalizar".
   if (!modelo.proprio) redirect("/templates");
 
   return (

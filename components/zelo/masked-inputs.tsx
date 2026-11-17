@@ -11,10 +11,7 @@ type BaseProps = Omit<
   "value" | "defaultValue" | "onChange" | "type"
 >;
 
-/*
- * Inputs com máscara (DESIGN.md 6). O que a pessoa vê é formatado; o que vai no formulário
- * (input hidden com o `name`) é o valor limpo: só dígitos ou centavos. O servidor revalida.
- */
+// O valor limpo vai num input hidden; o servidor revalida.
 
 export function CpfInput({
   name,
@@ -69,7 +66,6 @@ export function PhoneInput({
   );
 }
 
-/** Valor em reais digitado "pela direita" (1 → R$ 0,01). Envia centavos inteiros. */
 export function MoneyInput({
   name,
   defaultCentavos = 0,

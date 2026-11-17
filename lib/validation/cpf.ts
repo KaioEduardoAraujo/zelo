@@ -1,7 +1,4 @@
-/*
- * Validação de CPF pelos dígitos verificadores (algoritmo oficial da Receita).
- * Recusa também sequências repetidas (111.111.111-11), que passam no cálculo mas são inválidas.
- */
+// Recusa sequências repetidas, que passam no cálculo.
 export function isValidCpf(value: string): boolean {
   const cpf = value.replace(/\D/g, "");
   if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutosaveController, type AutosaveState, type SaveResult } from "@/lib/autosave";
 
-/** Salvamento controlável: cada chamada fica pendente até a resolvermos. */
 function fakeServer() {
   const calls: { value: string; resolve: (r: SaveResult) => void }[] = [];
   const save = vi.fn(

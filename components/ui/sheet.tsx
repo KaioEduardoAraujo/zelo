@@ -6,9 +6,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// shadcn/ui Sheet (Radix Dialog) customizado. Usado como BottomSheet no mobile
-// (aceite do cliente, pré-visualização) e como painel lateral quando preciso.
-
 function Sheet(props: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }

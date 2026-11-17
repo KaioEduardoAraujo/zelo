@@ -3,12 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "../styles/tokens.css";
 
-/*
- * Ponte entre os tokens da Zelo e as variáveis que os componentes do shadcn/ui esperam.
- * Assim os componentes gerados pelo shadcn já nascem com a identidade da marca
- * (teal como primário, raio de 8/12px, anel de foco teal) em vez do tema neutro padrão.
- * Sem modo escuro no MVP (DESIGN.md 3.3).
- */
+/* Liga os tokens da Zelo às variáveis que os componentes do shadcn esperam. */
 :root {
   --background: var(--color-bg);
   --foreground: var(--color-navy-900);
@@ -55,7 +50,6 @@
   --font-heading: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
-  /* Raios do shadcn: sm/md/lg = 8px (controles), xl = 12px (cartões) */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.5rem;
@@ -63,7 +57,6 @@
   --radius-2xl: 0.75rem;
 }
 
-/* Escala tipográfica (DESIGN.md 4). Mobile primeiro; desktop a partir de 768px. */
 @utility text-display {
   font-size: 2rem;
   line-height: 2.375rem;
@@ -130,11 +123,10 @@
   body {
     @apply bg-background text-body text-foreground antialiased;
   }
-  /* Valores monetários sempre com algarismos tabulares */
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  /* Inputs nunca abaixo de 16px (evita zoom automático no iOS) */
+  /* Inputs com 16px ou mais: evita o zoom automático do iOS. */
   input,
   select,
   textarea {
@@ -156,7 +148,6 @@
   }
 }
 
-/* Única animação "de marca": o check se desenhando no aceite (~400ms). */
 @theme {
   --animate-draw-check: draw-check 400ms var(--ease-out-zelo) 250ms both;
   @keyframes draw-check {

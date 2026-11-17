@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 
-/** Erro inesperado numa página: mensagem clara, sem jargão, com saída (DESIGN.md 8). */
 export default function Error({
   reset,
 }: {

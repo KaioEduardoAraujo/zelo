@@ -32,14 +32,11 @@ type Props = {
   token: string;
   titulo: string;
   tipo: TipoDocumento;
-  /** null na entrega (não tem valor). */
   valorCentavos: number | null;
   prestadorNome: string;
   clienteNome: string;
   emailMascarado: string;
-  /** Textos exatos que serão gravados, montados no servidor. */
   consentimentos: Record<AcaoCliente, string>;
-  /** WhatsApp (ou e-mail) do prestador para "Tenho dúvidas". */
   duvidasHref: string | null;
 };
 
@@ -49,11 +46,6 @@ type Sucesso = Extract<ResponderResultado, { ok: true }>;
 const SEGUNDOS_REENVIO = 60;
 const SEM_CONEXAO = "Não conseguimos falar com o servidor. Confira sua conexão e tente de novo.";
 
-/**
- * Resposta do cliente (DESIGN.md 7.2.7): barra fixa no rodapé com "Aceitar proposta" e
- * "Tenho dúvidas"; bottom sheet com nome, CPF (só no aceite), consentimento e o código por e-mail.
- * Recusar e pedir ajuste usam o mesmo fluxo. Nada aqui é confiado: o servidor valida tudo de novo.
- */
 export function RespostaCliente(props: Props) {
   const T = textosDe(props.tipo);
   const router = useRouter();
@@ -76,7 +68,6 @@ export function RespostaCliente(props: Props) {
   const [pendente, iniciar] = useTransition();
   const hidratado = useHidratado();
 
-  // Relógio só para o "Reenviar em 42 s".
   useEffect(() => {
     if (etapa !== "codigo") return;
     const id = setInterval(() => setAgora(Date.now()), 1000);
@@ -90,7 +81,7 @@ export function RespostaCliente(props: Props) {
 
   function abrir(nova: AcaoCliente) {
     if (nova !== acao) {
-      // Trocar de ação recomeça o fluxo: o código é amarrado à ação escolhida.
+      // O código é amarrado à ação: trocar de ação recomeça.
       setAcao(nova);
       setEtapa("dados");
       setCodigo("");
@@ -104,7 +95,6 @@ export function RespostaCliente(props: Props) {
 
   function mudarAberto(valor: boolean) {
     setAberto(valor);
-    // Depois de concluir, ao fechar a página passa a mostrar a proposta já respondida.
     if (!valor && etapa === "concluido") router.refresh();
   }
 
@@ -203,7 +193,6 @@ export function RespostaCliente(props: Props) {
         </div>
       </section>
 
-      {/* Barra fixa no rodapé: a ação principal sempre no mesmo lugar (DESIGN.md 8). */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-[var(--container-doc)] gap-3">
           {props.duvidasHref && (
@@ -265,7 +254,7 @@ export function RespostaCliente(props: Props) {
               <SheetFooter>
                 {sucesso.resultado === "aceito" ? (
                   <>
-                    {/* Link comum (não <Link>): é uma rota de download, não uma página. */}
+                    {/* Link comum: é uma rota de download, não uma página. */}
                     <Button asChild>
                       <a href={`/p/${props.token}/comprovante`}>
                         <Download aria-hidden="true" />

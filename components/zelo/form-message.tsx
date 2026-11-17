@@ -12,10 +12,6 @@ const ESTILO: Record<Tone, string> = {
 
 const ICONE = { error: CircleAlert, success: CircleCheck, info: Info } as const;
 
-/**
- * Mensagem geral da tela ou do formulário. Erro usa role="alert" (anunciado na hora);
- * sucesso e informação usam role="status" (anunciado com calma).
- */
 export function FormMessage({
   tone,
   children,

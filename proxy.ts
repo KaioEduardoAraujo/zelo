@@ -3,18 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isGuestOnlyPath, isProtectedPath } from "@/lib/auth/routes";
 
-/*
- * Proxy (antigo "middleware" — renomeado no Next 16). Roda antes de cada requisição e faz
- * duas coisas:
- *
- *  1. Renova a sessão do Supabase (o access token expira em 1h; aqui ele é trocado usando o
- *     refresh token e os cookies novos voltam na resposta).
- *  2. Redirecionamento OTIMISTA: sem login → /login; logado nas telas de visitante → /inicio.
- *
- * Isto NÃO é a checagem de segurança. Papel (admin/prestador) e conta suspensa são verificados
- * no servidor em lib/auth/dal.ts, e o banco ainda aplica RLS. O proxy só evita mostrar
- * uma tela que, de qualquer forma, não carregaria dados.
- */
+// Renova a sessão e redireciona de forma otimista. Não é a checagem de segurança: ela fica em
+// lib/auth/dal.ts e no RLS.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -39,7 +29,7 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // getClaims() valida a assinatura do JWT (não confia cegamente no cookie).
+  // getClaims() valida a assinatura do JWT.
   const { data } = await supabase.auth.getClaims();
   const isLoggedIn = Boolean(data?.claims?.sub);
   const { pathname, search } = request.nextUrl;
@@ -61,7 +51,7 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-/** Ao redirecionar, leva junto os cookies renovados (senão a sessão se perderia). */
+// Leva os cookies renovados no redirecionamento.
 function redirectKeepingCookies(url: URL, from: NextResponse) {
   const redirect = NextResponse.redirect(url);
   for (const cookie of from.cookies.getAll()) redirect.cookies.set(cookie);
@@ -72,8 +62,7 @@ function redirectKeepingCookies(url: URL, from: NextResponse) {
 
 export const config = {
   matcher: [
-    // Tudo, exceto: arquivos estáticos, ícones, marca e a página pública do cliente (/p/...),
-    // que não usa sessão e precisa ser o mais leve possível.
+    // Fora: estáticos, marca e a página do cliente (/p), que não usa sessão.
     "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|brand/|p/).*)",
   ],
 };

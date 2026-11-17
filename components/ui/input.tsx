@@ -2,8 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Input no padrão do DESIGN.md (seção 6): 48px de altura, fonte de 16px (sem zoom no iOS),
-// borda line-strong em repouso, anel teal de 2px no foco e borda vermelha quando inválido.
 function Input({ className, type = "text", ...props }: React.ComponentProps<"input">) {
   return (
     <input

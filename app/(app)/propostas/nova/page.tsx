@@ -15,7 +15,6 @@ export default async function NovaPropostaPage(props: PageProps<"/propostas/nova
   const { modelo } = await props.searchParams;
   const modelos = await listarModelos();
 
-  // Os seus modelos primeiro; depois os do Zelo.
   const opcoes: ModeloOpcao[] = [...modelos]
     .sort((a, b) => Number(b.proprio) - Number(a.proprio))
     .map((m) => ({

@@ -2,11 +2,7 @@ import { formatDateTime } from "@/lib/format";
 import type { AcaoCliente } from "@/lib/publico/otp";
 import { textosDe, type TipoDocumento } from "@/lib/tipos";
 
-/*
- * Templates de e-mail. Título da proposta e nome do prestador são digitados por usuários:
- * tudo o que entra no HTML passa por `escapeHtml` (evita injetar HTML/links num e-mail que
- * sai com o nome do Zelo).
- */
+// Título e nome são digitados por usuários: tudo passa por escapeHtml.
 export function escapeHtml(texto: string): string {
   return texto
     .replace(/&/g, "&amp;")
@@ -24,7 +20,6 @@ export function emailCodigo(p: {
   titulo: string;
   prestador: string;
   minutos: number;
-  /** Proposta se omitido. */
   tipo?: TipoDocumento;
 }): EmailMontado {
   const frase = `${textosDe(p.tipo).paraCodigo[p.acao]} “${p.titulo}”`;
@@ -55,13 +50,8 @@ export function emailCodigo(p: {
   return { assunto: `${p.codigo} é o seu código no Zelo`, html, texto };
 }
 
-/**
- * Comprovante do aceite, com o PDF anexo. Vai para o cliente e para o prestador, com textos
- * diferentes. Nada de dados pessoais além do nome que já está no documento.
- */
 export function emailComprovante(p: {
   para: "cliente" | "prestador";
-  /** Proposta se omitido. */
   tipo?: TipoDocumento;
   titulo: string;
   prestador: string;

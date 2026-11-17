@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/** Número do painel: rótulo pequeno, valor em destaque com algarismos tabulares. */
 export function StatTile({
   label,
   value,

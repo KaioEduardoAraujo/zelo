@@ -6,10 +6,6 @@ import { cookies } from "next/headers";
 import { publicEnv } from "@/lib/env";
 import type { Database } from "@/lib/supabase/database.types";
 
-/*
- * Cliente para Server Components, Server Actions e Route Handlers, agindo COMO o
- * usuário logado (sessão lida dos cookies). Continua sujeito ao RLS.
- */
 export async function createClient() {
   const env = publicEnv();
   const cookieStore = await cookies();
@@ -28,8 +24,7 @@ export async function createClient() {
               cookieStore.set(name, value, options);
             }
           } catch {
-            // Server Components não podem gravar cookies. Tudo bem: o proxy.ts
-            // (Fase 2) renova a sessão a cada requisição.
+            // Server Components não gravam cookies; o proxy.ts renova a sessão.
           }
         },
       },

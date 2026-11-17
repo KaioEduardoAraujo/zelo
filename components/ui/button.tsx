@@ -4,20 +4,14 @@ import { Slot } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 
-// Gerado pelo shadcn/ui e customizado para o DESIGN.md (seção 6):
-// altura 48px no mobile e 40px no desktop, raio 8px, foco com anel teal de 2px.
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-transparent font-semibold whitespace-nowrap transition-colors duration-150 ease-out outline-none select-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
   {
     variants: {
       variant: {
-        // Primário: ação principal da tela (teal = confirmar/positivo)
         default: "bg-teal-600 text-white hover:bg-teal-700",
-        // Secundário: borda navy + texto navy
         secondary: "border-navy-800 bg-surface text-navy-800 hover:bg-surface-2",
-        // Terciário: só texto
         ghost: "text-navy-700 hover:bg-surface-2 hover:text-navy-900",
-        // Destrutivo: sempre acompanhado de confirmação na tela que o usa
         destructive: "bg-danger text-white hover:bg-[#9c2f27]",
         link: "h-auto px-0 text-teal-600 underline-offset-4 hover:underline",
       },

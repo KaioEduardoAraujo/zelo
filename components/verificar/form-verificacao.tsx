@@ -20,7 +20,7 @@ const RESULTADO = {
 
 const LIMITE_ARQUIVO = 5 * 1024 * 1024;
 
-/** SHA-256 do arquivo calculado NO NAVEGADOR: o PDF não é enviado para o servidor. */
+// SHA-256 calculado no navegador: o PDF não é enviado.
 async function sha256DoArquivo(arquivo: File): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", await arquivo.arrayBuffer());
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");

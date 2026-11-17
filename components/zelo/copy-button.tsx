@@ -5,7 +5,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-/** Copia um texto (hash, link) para a área de transferência e confirma com um toast. */
 export function CopyButton({
   text,
   label,

@@ -7,12 +7,10 @@ import { cn } from "@/lib/utils";
 type FormFieldProps = {
   id: string;
   label: string;
-  /** Texto de apoio abaixo do rótulo (ex.: regra da senha). */
   hint?: string;
   error?: string;
   optional?: boolean;
   className?: string;
-  /** Recebe os atributos de acessibilidade para repassar ao input. */
   children: (a11y: {
     id: string;
     "aria-invalid": boolean | undefined;
@@ -20,10 +18,6 @@ type FormFieldProps = {
   }) => React.ReactNode;
 };
 
-/**
- * Campo de formulário: rótulo sempre visível (nunca só placeholder), dica opcional e
- * mensagem de erro abaixo, com ícone, ligada ao input por aria-describedby.
- */
 export function FormField({
   id,
   label,

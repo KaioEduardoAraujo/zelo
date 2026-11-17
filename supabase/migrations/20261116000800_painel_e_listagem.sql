@@ -1,17 +1,6 @@
--- =============================================================================
--- Zelo · 0008 · Listagem de propostas e números do painel (Fase 4)
---
--- 1. propostas_situacao ganha `valor_total_centavos` (valor da VERSÃO ATUAL), para a
---    listagem e o painel mostrarem o valor sem baixar o conteúdo inteiro de cada versão.
--- 2. resumo_painel(): os três números do painel do prestador, calculados no banco.
---
--- Ambos são SECURITY INVOKER: rodam com as permissões de quem consulta, então o RLS
--- continua valendo e cada prestador só soma as próprias propostas.
--- =============================================================================
+-- SECURITY INVOKER: o RLS vale e cada prestador só soma as próprias propostas.
 
--- O conteúdo da versão é um jsonb que o prestador (dono) pode escrever pela API. Por isso o
--- valor só é lido quando é realmente um número: um texto qualquer em `valor_total_centavos`
--- não pode quebrar a listagem inteira com um erro de conversão.
+-- O jsonb é escrito pelo prestador: só lê o valor se for número, para não quebrar a listagem.
 create or replace view public.propostas_situacao
 with (security_invoker = true) as
 select
@@ -34,9 +23,6 @@ from public.propostas p;
 revoke all on public.propostas_situacao from anon;
 grant select on public.propostas_situacao to authenticated;
 
--- "Aguardando resposta": enviadas ou visualizadas que ainda não venceram.
--- "Aceitas no mês" e "Valor aceito no mês": aceites positivos de propostas e aditivos
--- (aceite de entrega não tem valor) desde o início do mês em horário de Brasília.
 create function public.resumo_painel()
 returns table (
   aguardando bigint,

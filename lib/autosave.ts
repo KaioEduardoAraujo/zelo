@@ -1,12 +1,4 @@
-/*
- * Controlador de autosave (sem React, para poder ser testado com relógio falso).
- *
- * Garantias:
- *  - Debounce: uma rajada de edições vira UM salvamento, `delayMs` depois da última.
- *  - Nunca dois salvamentos ao mesmo tempo (o último a terminar não pode sobrescrever o mais novo).
- *  - Edição feita DURANTE um salvamento não se perde: ao terminar, salva de novo o valor mais novo.
- *  - Falha de rede não descarta nada: o valor continua pendente e a pessoa pode tentar de novo.
- */
+// Nunca dois salvamentos ao mesmo tempo; edição feita durante um salvamento é salva em seguida.
 
 export type AutosaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -35,24 +27,21 @@ export class AutosaveController<T> {
 
   constructor(private opts: Options<T>) {}
 
-  /** Troca a função de salvamento (o hook mantém a versão mais recente da Server Action). */
   setSave = (save: Options<T>["save"]) => {
     this.opts = { ...this.opts, save };
   };
 
-  /** Chame a cada edição, com o valor completo mais recente. */
   schedule = (value: T) => {
     this.latest = value;
     this.pending = true;
     if (!this.saving) this.emit({ status: "dirty" });
     this.clearTimer();
     this.timer = setTimeout(() => {
-      this.timer = null; // o timer já disparou: não pode ficar "armado" na memória
+      this.timer = null;
       void this.run();
     }, this.opts.delayMs ?? 1500);
   };
 
-  /** Salva já. Resolve `true` se não sobrou nada pendente e a última tentativa deu certo. */
   flush = async (): Promise<boolean> => {
     this.clearTimer();
     while (this.saving || this.pending) {
@@ -63,7 +52,6 @@ export class AutosaveController<T> {
     return !this.pending && this.state.status !== "error";
   };
 
-  /** Ao sair da tela: dispara o salvamento pendente sem esperar. */
   dispose = () => {
     this.clearTimer();
     if (this.pending && !this.saving) void this.run();
@@ -92,12 +80,11 @@ export class AutosaveController<T> {
       this.inflight = null;
 
       if (!result.ok) {
-        this.pending = true; // o valor continua sem salvar
+        this.pending = true;
         this.emit({ status: "error", message: result.message });
         return;
       }
       if (this.pending) {
-        // Houve edição durante o salvamento: o debounce já está armado (ou dispara agora).
         this.emit({ status: "dirty", savedAt: (this.opts.now ?? (() => new Date()))() });
         if (!this.timer) void this.run();
         return;

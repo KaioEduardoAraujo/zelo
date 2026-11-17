@@ -11,12 +11,6 @@ import { createClient } from "@/lib/supabase/server";
 import { flattenIssues } from "@/lib/validation/errors";
 import { conteudoPropostaSchema, conteudoRascunhoSchema } from "@/lib/validation/proposta";
 
-/*
- * Modelos (templates). Os globais são do sistema e ficam só para leitura; o prestador
- * DUPLICA um global e personaliza a cópia, que passa a ser dele (dono_id = seu id).
- * O RLS do banco garante que ele só altera e exclui os próprios.
- */
-
 export type ModeloResultado =
   { ok: true } | { ok: false; errors?: Record<string, string>; message?: string };
 
@@ -76,7 +70,6 @@ export async function salvarModelo(entrada: SalvarModeloEntrada): Promise<Modelo
     };
   }
 
-  // Um modelo é sempre um conteúdo COMPLETO (formato estrito): quem o usa começa de algo pronto.
   const conteudo = normalizarConteudo(parsed.data.conteudo);
   const estrito = conteudoPropostaSchema.safeParse(conteudo);
   if (!estrito.success) {
@@ -96,7 +89,7 @@ export async function salvarModelo(entrada: SalvarModeloEntrada): Promise<Modelo
       conteudo: estrito.data,
     })
     .eq("id", parsed.data.id)
-    .eq("dono_id", profile.id) // só os próprios; o RLS repete essa regra no banco
+    .eq("dono_id", profile.id)
     .select("id");
 
   if (error || !data?.length) {

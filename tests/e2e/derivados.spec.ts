@@ -16,17 +16,11 @@ import {
   zerarLimitesDeTaxa,
 } from "./support";
 
-/*
- * Fase 8: aditivo e aceite de entrega. Os dois REUTILIZAM o fluxo da proposta (mesmas telas de
- * envio, página do cliente, OTP e comprovante); estes testes provam que o vínculo com a proposta
- * aceita, o texto de cada tipo e as fotos da entrega funcionam de ponta a ponta.
- */
-
 test.beforeEach(async () => {
   await zerarLimitesDeTaxa();
 });
 
-// PNG 1×1 válido: o navegador o desenha num canvas e regrava como JPEG (compressão das fotos).
+// PNG 1×1: o navegador o regrava como JPEG.
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
   "base64",
@@ -46,7 +40,6 @@ async function login(page: Page, conta: { email: string; password: string }) {
   await expect(page).toHaveURL(/\/inicio/);
 }
 
-/** O link aparece na mensagem da tela "criada". Devolve só o caminho (/p/<token>). */
 async function lerCaminho(page: Page) {
   const mensagem = await page
     .getByText(/\/p\/[A-Za-z0-9_-]{43}/)
@@ -112,7 +105,6 @@ test.describe("aditivo", () => {
       page.getByText("Aditivo à proposta “Troca de tela iPhone 12”").first(),
     ).toBeVisible();
 
-    // Etapa 2 e 3: só o que muda em relação à proposta original
     await page
       .getByLabel("O que será feito")
       .fill("Troca da película e instalação de capa reforçada.");
@@ -126,7 +118,6 @@ test.describe("aditivo", () => {
     await expect(page.getByLabel("Garantia")).toHaveValue("90 dias para peça e serviço");
     await page.getByRole("button", { name: "Continuar" }).click();
 
-    // Etapa 4: o botão e o aviso falam de aditivo
     await expect(
       page.getByText("Aditivo à proposta “Troca de tela iPhone 12”").first(),
     ).toBeVisible();
@@ -142,7 +133,7 @@ test.describe("aditivo", () => {
     ).toBeVisible();
     const caminho = await lerCaminho(page);
 
-    // Banco: vínculo e referência SELADA dentro do documento (e portanto do hash)
+    // A referência fica selada dentro do documento (e do hash)
     const a = await filho(pai.id, "aditivo");
     expect(a).toMatchObject({ proposta_pai_id: pai.id, status: "enviada" });
     const v = await versaoDe(a.id);
@@ -155,7 +146,6 @@ test.describe("aditivo", () => {
       valor_total_centavos: 8000,
     });
 
-    // O cliente abre o link, aceita (com código por e-mail) e baixa o comprovante
     const anonimo = await browser.newContext();
     const c = await anonimo.newPage();
     await c.goto(caminho);
@@ -176,7 +166,6 @@ test.describe("aditivo", () => {
     });
     await expect(folha.getByRole("link", { name: "Baixar comprovante" })).toBeVisible();
 
-    // E-mails com o PDF anexo, com o texto do aditivo
     const { data: aceite } = await service
       .from("aceites")
       .select("codigo_comprovante, texto_consentimento")
@@ -197,14 +186,12 @@ test.describe("aditivo", () => {
       .poll(async () => (await emailsPara(conta.email))[0]?.subject, { timeout: 30_000 })
       .toBe("Aditivo aceito: Aditivo: Troca de tela iPhone 12");
 
-    // /verificar diz que é um aditivo
     await c.goto(`/verificar?codigo=${aceite!.codigo_comprovante}`);
     await c.getByRole("button", { name: "Verificar" }).click();
     await expect(c.getByRole("heading", { name: "Documento íntegro" })).toBeVisible();
     await expect(c.getByText("Aditivo", { exact: true })).toBeVisible();
     await anonimo.close();
 
-    // O prestador vê o aditivo ligado à proposta, e a proposta lista o aditivo
     await page.goto(`/propostas/${a.id}`);
     await expect(page.getByRole("link", { name: "“Troca de tela iPhone 12”" })).toBeVisible();
     await expect(page.getByText(/Aceito por Rafael Lima/)).toBeVisible();
@@ -247,7 +234,6 @@ test.describe("aceite de entrega", () => {
     );
     await expect(page.getByLabel("Item 1 entregue")).not.toBeChecked();
 
-    // Sem preencher: cada problema aparece no seu campo
     await page.getByRole("button", { name: "Enviar entrega" }).click();
     await expect(
       page.getByText("Descreva o que foi entregue (pelo menos 10 caracteres)."),
@@ -259,7 +245,6 @@ test.describe("aceite de entrega", () => {
       .fill("Tela trocada, com testes de touch, câmera e Face ID depois do reparo.");
     await page.getByLabel("Item 1 entregue").check();
 
-    // Foto: comprimida no navegador e enviada ao bucket privado
     await page.locator('input[type="file"]').setInputFiles({
       name: "IMG 001.png",
       mimeType: "image/png",
@@ -289,7 +274,6 @@ test.describe("aceite de entrega", () => {
     await expect(img).toBeVisible();
     expect(await img.getAttribute("src")).toContain("/storage/v1/object/sign/entregas/");
 
-    // Envia
     await expect(page.getByRole("button", { name: "Enviar entrega" })).toBeEnabled({
       timeout: 30_000,
     });
@@ -305,7 +289,6 @@ test.describe("aceite de entrega", () => {
     ).toBeVisible();
     const caminho = await lerCaminho(page);
 
-    // Banco: a foto foi selada com SHA-256 e a referência aponta para a proposta aceita
     const e = await filho(pai.id, "entrega");
     expect(e.status).toBe("enviada");
     const v = await versaoDe(e.id);
@@ -321,7 +304,6 @@ test.describe("aceite de entrega", () => {
     expect(doc.fotos[0].path.startsWith(`${conta.id}/${e.id}/`)).toBe(true);
     expect(doc.referencia.hash_documento).toBe(pai.hash);
 
-    // O cliente vê o registro com a foto, confirma o recebimento e baixa o comprovante
     const anonimo = await browser.newContext();
     const c = await anonimo.newPage();
     await c.goto(caminho);
@@ -371,7 +353,6 @@ test.describe("aceite de entrega", () => {
       });
     await anonimo.close();
 
-    // O prestador vê a entrega confirmada, com a foto, e não consegue criar outro aditivo a partir dela
     await page.goto(`/propostas/${e.id}`);
     await expect(page.getByText("Aceita", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Confirmada por Rafael Lima/)).toBeVisible();
@@ -380,7 +361,6 @@ test.describe("aceite de entrega", () => {
     await expect(page.getByRole("link", { name: "Baixar comprovante (PDF)" })).toBeVisible();
   });
 
-  /** Rascunho de entrega criado direto no banco, com a foto indicada, e o editor aberto nele. */
   async function abrirEntregaComFoto(
     page: Page,
     conta: { id: string; email: string; password: string },
@@ -507,12 +487,10 @@ test("editor de entrega e página do cliente cabem em 375px (sem rolagem horizon
   });
   await semRolagemHorizontal(page);
 
-  // Detalhe da proposta aceita (com os botões de aditivo e entrega)
   await page.goto(`/propostas/${pai.id}`);
   await expect(page.getByRole("button", { name: "Novo aditivo" })).toBeVisible();
   await semRolagemHorizontal(page);
 
-  // Página do cliente (proposta enviada; a entrega usa o mesmo contêiner e uma grade de 2 colunas)
   const enviada = await semearProposta(conta.id, { status: "enviada" });
   const anonimo = await browser.newContext({ viewport: { width: 375, height: 800 } });
   const c = await anonimo.newPage();

@@ -1,22 +1,7 @@
--- =============================================================================
--- Zelo · 0010 · Resposta do cliente pela página pública (Fase 6)
---
--- O cliente não tem conta: quem age por ele é o SERVIDOR, com a service_role, depois de validar
--- o token do link. Por isso estas funções:
---   - só podem ser executadas pela service_role (nem `anon`, nem `authenticated`);
---   - são SECURITY INVOKER: a service_role já ignora o RLS, e os TRIGGERS continuam valendo
---     (aceite só para a versão atual, enviada, na validade, com o hash certo; append-only).
---
---   limites_taxa / consumir_limite → limite de requisições por chave (IP, proposta).
---   registrar_abertura              → evento "aberta" e status "visualizada".
---   registrar_otp                   → guarda o hash do código (máx. 3 por hora por proposta).
---   registrar_resposta              → confere o código e grava aceite + status + eventos, de uma vez.
--- =============================================================================
+-- Só a service_role executa (o cliente não tem conta; o servidor valida o token antes).
+-- SECURITY INVOKER: os triggers continuam valendo.
 
--- -----------------------------------------------------------------------------
--- 1. Limite de taxa (decisão D17): contagem por janela fixa, no próprio Postgres.
---    Memória do servidor não serve na Vercel (cada requisição pode cair numa instância).
--- -----------------------------------------------------------------------------
+-- Limite de taxa no Postgres: memória do servidor não serve na Vercel.
 create table public.limites_taxa (
   chave          text not null check (char_length(chave) <= 200),
   janela_inicio  timestamptz not null,
@@ -25,10 +10,9 @@ create table public.limites_taxa (
 );
 comment on table public.limites_taxa is 'Contadores de limite de taxa. Chaves com IP guardam o HMAC do IP, nunca o IP.';
 
-alter table public.limites_taxa enable row level security; -- sem política: só a service_role
+alter table public.limites_taxa enable row level security;
 revoke all on public.limites_taxa from anon, authenticated;
 
--- Devolve true se ainda está dentro do limite (e já conta esta tentativa).
 create function public.consumir_limite(p_chave text, p_limite integer, p_janela_segundos integer)
 returns boolean
 language plpgsql
@@ -51,19 +35,13 @@ begin
     do update set contagem = public.limites_taxa.contagem + 1
   returning contagem into v_contagem;
 
-  -- Faxina: janelas antigas desta chave não servem mais.
   delete from public.limites_taxa where chave = p_chave and janela_inicio < v_inicio;
 
   return v_contagem <= p_limite;
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- 2. Abertura do link.
--- Chamada pelo NAVEGADOR do cliente depois que a página carrega (não na renderização do
--- servidor): robôs de prévia de link, como o do próprio WhatsApp, buscam a página sem rodar
--- JavaScript e, assim, não marcam a proposta como "visualizada" antes de o cliente abrir.
--- -----------------------------------------------------------------------------
+-- Chamada pelo navegador depois de carregar: a prévia de link do WhatsApp não roda JS.
 create function public.registrar_abertura(p_proposta_id uuid, p_ip inet, p_user_agent text)
 returns void
 language plpgsql
@@ -86,7 +64,7 @@ begin
   from public.proposta_versoes
   where proposta_id = p_proposta_id and numero = v_p.versao_atual;
 
-  -- Recarregar a página não enche a trilha: uma abertura por dispositivo a cada 10 minutos.
+  -- Uma abertura por dispositivo a cada 10 minutos.
   if not exists (
     select 1 from public.auditoria_eventos
     where proposta_id = p_proposta_id
@@ -105,11 +83,7 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- 3. Código OTP. Guarda só o HMAC do código (calculado no servidor, amarrado à proposta e à
---    ação escolhida). Vale 10 minutos; no máximo 3 códigos por hora por proposta. Só o código
---    MAIS RECENTE vale (pedir outro invalida o anterior).
--- -----------------------------------------------------------------------------
+-- Só o HMAC do código. Só o código mais recente vale.
 create function public.registrar_otp(
   p_proposta_id uuid,
   p_email text,
@@ -153,7 +127,7 @@ begin
   from public.proposta_versoes
   where proposta_id = p_proposta_id and numero = v_p.versao_atual;
 
-  -- Sem o e-mail nos metadados (LGPD): só a ação pedida.
+  -- Sem o e-mail nos metadados (LGPD).
   insert into public.auditoria_eventos (proposta_id, versao_id, tipo, ip, user_agent, metadados)
   values (p_proposta_id, v_versao_id, 'otp_enviado', p_ip, left(p_user_agent, 512),
           jsonb_build_object('acao', p_acao));
@@ -162,13 +136,8 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- 4. Resposta do cliente. Tudo numa transação: conferir o código, gravar o aceite (com o hash
---    da versão), mudar o status e registrar os eventos.
---
--- Código errado NÃO lança erro: devolve um status. Um erro desfaria a contagem de tentativas
--- (o rollback apagaria o "+1"), e o limite de 5 tentativas nunca seria atingido.
--- -----------------------------------------------------------------------------
+-- Código errado devolve status em vez de erro: um erro desfaria o +1 das tentativas e o limite
+-- de 5 nunca seria atingido.
 create function public.registrar_resposta(
   p_proposta_id uuid,
   p_codigo_hash text,
@@ -242,14 +211,12 @@ begin
     return;
   end if;
 
-  -- Código certo: uso único.
   update public.otp_codigos set usado_em = v_agora where id = v_otp.id;
 
   insert into public.auditoria_eventos (proposta_id, versao_id, tipo, ip, user_agent)
   values (p_proposta_id, v_versao.id, 'otp_verificado', p_ip, v_ua);
 
-  -- O trigger validar_aceite confere versão atual, envio, validade e hash.
-  -- pdf_path é definido AGORA (D21): o aceite é append-only e não recebe UPDATE depois.
+  -- pdf_path definido agora: o aceite é append-only.
   insert into public.aceites (
     id, versao_id, resultado, comentario, cliente_nome, cliente_cpf, ip, user_agent,
     otp_verificado_em, texto_consentimento, hash_documento, pdf_path
@@ -286,9 +253,6 @@ begin
 end;
 $$;
 
--- -----------------------------------------------------------------------------
--- Só o servidor (service_role) executa. Funções novas nascem executáveis por todos: fecha.
--- -----------------------------------------------------------------------------
 revoke execute on function public.consumir_limite(text, integer, integer) from public, anon, authenticated;
 revoke execute on function public.registrar_abertura(uuid, inet, text) from public, anon, authenticated;
 revoke execute on function public.registrar_otp(uuid, text, text, public.aceite_resultado, inet, text) from public, anon, authenticated;

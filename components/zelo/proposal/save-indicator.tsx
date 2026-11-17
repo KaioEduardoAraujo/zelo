@@ -5,10 +5,6 @@ import type { AutosaveState } from "@/lib/autosave";
 import { formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/**
- * Situação do salvamento automático (DESIGN.md 8: feedback imediato; nunca perder dados).
- * Região `aria-live`: leitores de tela anunciam "Salvo às 14:32" sem tirar o foco.
- */
 export function SaveIndicator({
   state,
   onRetry,

@@ -98,7 +98,6 @@ describe("comprovante em PDF", () => {
   }, 30_000);
 
   it("entrega: checklist e fotos (imagem embutida e imagem não incluída)", async () => {
-    // PNG 1×1 válido; o PDF aceita JPEG e PNG.
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
       "base64",

@@ -14,10 +14,6 @@ export type AuditEvent = {
 const POSITIVE: EventoTipo[] = ["aceita", "otp_verificado", "pdf_gerado"];
 const NEGATIVE: EventoTipo[] = ["recusada", "otp_falhou"];
 
-/**
- * Trilha de auditoria (DESIGN.md 6): linha vertical fina, um ponto por evento,
- * hora em fonte mono. IP e dispositivo aparecem como dado de verdade, não escondidos.
- */
 export function AuditTimeline({ events, className }: { events: AuditEvent[]; className?: string }) {
   if (events.length === 0) {
     return <p className="text-support text-slate-600">Nenhum evento registrado ainda.</p>;

@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/** Título de página + ação principal (no desktop fica à direita do título). */
 export function PageHeader({
   title,
   description,
@@ -9,7 +8,6 @@ export function PageHeader({
   className,
 }: {
   title: string;
-  /** No mobile a barra superior já mostra o nome da página; o H1 fica só para leitores de tela. */
   showTitleOnMobile?: boolean;
   description?: string;
   action?: React.ReactNode;

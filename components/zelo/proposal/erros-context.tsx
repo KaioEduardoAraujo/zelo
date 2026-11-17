@@ -2,11 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
-/*
- * Mostra o erro de um campo só no momento certo (DESIGN.md 8): depois que a pessoa SAIU do campo,
- * ou depois que tentou avançar (`mostrarTodos`). Assim ninguém vê "campo obrigatório" enquanto
- * ainda está digitando pela primeira vez.
- */
+// O erro só aparece depois que a pessoa sai do campo ou tenta avançar.
 type Ctx = {
   erro: (campo: string) => string | undefined;
   tocar: (campo: string) => void;

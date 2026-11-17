@@ -5,11 +5,8 @@ import { requirePrestador } from "@/lib/auth/dal";
 import { linkDoComprovante } from "@/lib/comprovante/servico";
 import { createClient } from "@/lib/supabase/server";
 
-/*
- * Download do comprovante pelo PRESTADOR. Route Handlers não passam pelo layout, então a
- * sessão é conferida aqui (DAL). O aceite é lido com o cliente do USUÁRIO: o RLS só devolve
- * aceites de propostas dele; proposta alheia ou sem aceite dá o mesmo 404.
- */
+// Route Handlers não passam pelo layout: a sessão é conferida aqui. O RLS só devolve aceites
+// do próprio prestador.
 
 const naoEncontrado = () =>
   new NextResponse("Comprovante não encontrado.", {

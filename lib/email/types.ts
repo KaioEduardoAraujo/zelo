@@ -1,7 +1,3 @@
-/*
- * Interface de envio de e-mail (decisão D3). O resto do sistema só conhece esta interface:
- * trocar Resend por SMTP (ou por outro serviço) é mudar uma variável de ambiente.
- */
 export type MensagemEmail = {
   para: string;
   assunto: string;

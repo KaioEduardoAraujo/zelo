@@ -17,11 +17,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { Nicho } from "@/lib/nichos";
 import type { ConteudoRascunho } from "@/lib/validation/proposta";
 
-/*
- * Consultas de leitura da Fase 4. Todas usam o cliente do USUÁRIO LOGADO (não a service_role):
- * o RLS do banco garante que cada prestador só enxerga as próprias propostas e modelos.
- */
-
 const LISTA_COLUNAS =
   "id, tipo, titulo, cliente_nome, status_efetivo, valor_total_centavos, atualizado_em, validade_em";
 
@@ -59,14 +54,11 @@ export async function listarPropostas(f: FiltrosListagem) {
     .range(de, de + PAGE_SIZE - 1);
 
   if (f.status) consulta = consulta.eq("status_efetivo", f.status);
-  // `q` já passou por limparBusca(): só letras, números, espaço e hífen.
   if (f.q) consulta = consulta.or(`titulo.ilike.%${f.q}%,cliente_nome.ilike.%${f.q}%`);
 
   const { data, count, error } = await consulta;
 
-  // Página além do fim (link antigo, filtro novo): o PostgREST responde "intervalo não
-  // satisfatível" (PGRST103). Não é falha: conta o total com os mesmos filtros e devolve a lista
-  // vazia, para a tela redirecionar para a última página que existe.
+  // Página além do fim (PGRST103) não é erro: devolve vazio para a tela ir à última página.
   if (error?.code === "PGRST103") {
     let contagem = supabase.from("propostas_situacao").select("id", { count: "exact", head: true });
     if (f.status) contagem = contagem.eq("status_efetivo", f.status);
@@ -88,7 +80,6 @@ export async function listarPropostas(f: FiltrosListagem) {
   };
 }
 
-/** Existe alguma proposta (de qualquer status)? Diferencia "nenhuma ainda" de "nenhum resultado". */
 export async function temPropostas(): Promise<boolean> {
   const supabase = await createClient();
   const { count } = await supabase.from("propostas").select("id", { count: "exact", head: true });
@@ -113,7 +104,6 @@ export async function resumoPainel(): Promise<ResumoPainel> {
 
 export type ItemAtencao = { proposta: ProposalSummary; atencao: Attention };
 
-/** Propostas que dependem de uma ação do prestador agora (mais urgentes primeiro). */
 export async function precisaDeAtencao(agora = new Date()): Promise<ItemAtencao[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -155,14 +145,8 @@ export type VersaoDetalhe = {
   hashSha256: string | null;
   enviadaEm: string | null;
   criadoEm: string;
-  /** Só em entrega: o conteúdo no formato de entrega (checklist e fotos). */
   entrega: ConteudoEntrega | null;
-  /** Só versões enviadas têm. Mostra as partes como eram no envio. */
   snapshot: SnapshotDocumento | null;
-  /**
-   * Hash RECALCULADO agora, a partir do conteúdo guardado, comparado com o gravado no envio.
-   * null = versão ainda em rascunho. false só aconteceria se o conteúdo tivesse sido adulterado.
-   */
   hashConfere: boolean | null;
 };
 
@@ -176,9 +160,7 @@ export type Derivado = {
 export type PropostaDetalhe = {
   id: string;
   tipo: TipoDocumento;
-  /** Aditivo e entrega: a proposta aceita de onde nasceram. */
   pai: { id: string; titulo: string } | null;
-  /** Proposta aceita: os aditivos e entregas criados a partir dela. */
   derivados: Derivado[];
   titulo: string;
   clienteNome: string;
@@ -191,11 +173,9 @@ export type PropostaDetalhe = {
   atualizadoEm: string;
   versoes: VersaoDetalhe[];
   eventos: AuditEvent[];
-  /** Aceite registrado (só quando o cliente aceitou). Dá acesso ao comprovante. */
   aceite: { codigo: string; criadoEm: string; clienteNome: string; cpf: string | null } | null;
 };
 
-/** Proposta + versões + trilha de auditoria. Id inválido ou de outro prestador → 404. */
 export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
   if (!idSchema.safeParse(id).success) notFound();
   const supabase = await createClient();
@@ -230,7 +210,7 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
   ]);
 
   const p = proposta.data;
-  if (!p || !p.id) notFound(); // RLS: proposta de outro prestador aparece como inexistente
+  if (!p || !p.id) notFound(); // RLS: proposta de outro prestador vira 404
 
   const { data: pai } = p.proposta_pai_id
     ? await supabase
@@ -297,7 +277,6 @@ export type ModeloResumo = {
   conteudo: ConteudoRascunho;
 };
 
-/** Modelos globais e do prestador (o RLS já filtra: globais ativos + os próprios). */
 export async function listarModelos(): Promise<ModeloResumo[]> {
   const supabase = await createClient();
   const { data } = await supabase

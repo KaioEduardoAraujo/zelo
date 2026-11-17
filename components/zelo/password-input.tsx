@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 
-/** Campo de senha com botão "mostrar/ocultar" (alvo de toque de 44px). */
 export function PasswordInput(props: Omit<React.ComponentProps<typeof Input>, "type">) {
   const [visible, setVisible] = useState(false);
   return (

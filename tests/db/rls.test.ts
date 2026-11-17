@@ -9,10 +9,7 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Prova do isolamento entre prestadores (regra inegociável nº 3).
- * A tem uma proposta aceita (com versão, aceite e evento de auditoria); B tenta de tudo.
- */
+// A tem uma proposta aceita; B tenta de tudo.
 let a: Usuario;
 let b: Usuario;
 let admin: Usuario;
@@ -166,7 +163,6 @@ describe("dono e permissões do próprio prestador", () => {
 
 describe("funções auxiliares do RLS ficam fora da API", () => {
   it("nem anon nem logado chamam is_admin / eh_dono_da_proposta via /rpc", async () => {
-    // Estão no schema `private`, que o PostgREST não expõe (migration 0007).
     const anon = await anonClient().rpc("is_admin" as never);
     expect(anon.error).not.toBeNull();
     const logado = await a.client.rpc(

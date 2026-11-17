@@ -1,16 +1,5 @@
--- =============================================================================
--- Zelo · 0007 · Funções auxiliares fora da API
---
--- O PostgREST expõe tudo o que está no schema `public` em /rest/v1/rpc/<função>.
--- As funções usadas pelas políticas RLS (is_admin, is_active_prestador,
--- eh_dono_da_proposta) são SECURITY DEFINER e não precisam ser chamadas pela API.
--- Movê-las para o schema `private` (não exposto) as tira da API, e as políticas
--- continuam funcionando, porque guardam a referência interna (OID) da função.
--- Apontado pelos advisors de segurança do Supabase.
---
--- admin_resumo_prestadores continua em `public` DE PROPÓSITO: o painel do admin a chama
--- pela API, e a primeira coisa que ela faz é exigir admin.
--- =============================================================================
+-- Funções usadas pelo RLS fora do schema public (não ficam expostas em /rpc). As políticas
+-- continuam funcionando porque guardam o OID da função.
 
 create schema if not exists private;
 revoke all on schema private from public, anon;
@@ -21,11 +10,10 @@ alter function public.is_active_prestador() set schema private;
 alter function public.eh_dono_da_proposta(uuid) set schema private;
 alter function public.eh_usuario_final() set schema private;
 
--- Visitante anônimo nunca avalia políticas (todas são "to authenticated").
 revoke execute on all functions in schema private from public, anon;
 grant execute on all functions in schema private to authenticated, service_role;
 
--- Corpos em PL/pgSQL referenciam as funções pelo NOME, então precisam ser recriados.
+-- Corpos PL/pgSQL referenciam as funções pelo nome: recriados.
 create or replace function public.proteger_perfil()
 returns trigger
 language plpgsql
@@ -37,7 +25,7 @@ begin
   end if;
 
   if not private.eh_usuario_final() then
-    return new; -- servidor/migrations (ex.: seed do admin, sincronizar e-mail)
+    return new;
   end if;
 
   if new.role <> old.role then
@@ -53,7 +41,6 @@ begin
     end if;
   end if;
 
-  -- Admin mexendo no perfil de outra pessoa: só pode mudar `ativo`.
   if new.id <> auth.uid()
      and (new.nome, new.telefone, new.empresa_nome)
          is distinct from (old.nome, old.telefone, old.empresa_nome) then
@@ -100,7 +87,6 @@ begin
 end;
 $$;
 
--- As demais funções de trigger usam eh_usuario_final pelo nome: recriadas também.
 create or replace function public.proteger_proposta()
 returns trigger
 language plpgsql

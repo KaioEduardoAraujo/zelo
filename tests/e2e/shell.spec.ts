@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { criarConta, entrar } from "./support";
 
-/** Nenhuma rolagem horizontal (DESIGN.md: funciona em 375px). */
 async function semRolagemHorizontal(page: Page) {
   const { scroll, viewport } = await page.evaluate(() => ({
     scroll: document.documentElement.scrollWidth,
@@ -41,12 +40,10 @@ test("shell do prestador: navegação, item ativo e sem rolagem lateral", async 
     await semRolagemHorizontal(page);
   }
 
-  // Desktop: botão no topo da barra lateral · mobile: botão central da navegação inferior.
   await page.getByRole("link", { name: "Nova proposta" }).filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/\/propostas\/nova$/);
 
   if (isMobile) {
-    // No celular, o título fica na barra superior; o H1 existe só para leitores de tela.
     await expect(page.getByRole("banner").getByText("Nova proposta")).toBeVisible();
   }
 });

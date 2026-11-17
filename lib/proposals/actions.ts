@@ -20,13 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, phoneSchema } from "@/lib/validation/auth";
 import { clienteSchema, conteudoRascunhoSchema } from "@/lib/validation/proposta";
 
-/*
- * Server Actions das propostas (Fase 4).
- *
- * Todas usam o cliente do usuário logado: quem decide o que é permitido é o banco (RLS e
- * triggers). A validação aqui existe para devolver mensagens claras e para nunca gravar
- * conteúdo fora do formato — mas ela NÃO é a única barreira.
- */
+// Usam a sessão do usuário: o RLS e os triggers decidem o que é permitido.
 
 const text = (formData: FormData, key: string) => {
   const v = formData.get(key);
@@ -35,7 +29,6 @@ const text = (formData: FormData, key: string) => {
 
 const modeloSchema = z.union([z.literal("zero"), z.uuid()]);
 
-/** Etapa 1 do assistente: cria o rascunho (proposta + versão 1) e abre a etapa 2. */
 export async function criarRascunho(_prev: FormState, formData: FormData): Promise<FormState> {
   const profile = await requirePrestador();
 
@@ -89,7 +82,7 @@ export async function criarRascunho(_prev: FormState, formData: FormData): Promi
     .from("proposta_versoes")
     .insert({ proposta_id: proposta.id, numero: 1, conteudo });
   if (erroVersao) {
-    // Sem versão a proposta não serve para nada: desfaz, para não deixar um rascunho órfão.
+    // Sem versão a proposta não serve: desfaz.
     await supabase.from("propostas").delete().eq("id", proposta.id);
     return falha;
   }
@@ -111,12 +104,7 @@ const salvarSchema = z.object({
 
 export type SalvarRascunhoEntrada = z.input<typeof salvarSchema>;
 
-/**
- * Autosave. Chamado a cada ~1,5 s de edição, por isso:
- *  - o conteúdo é gravado sempre (leniente: nunca recusa campo incompleto);
- *  - cada dado do cliente só é gravado se JÁ estiver válido (e-mail pela metade não entra);
- *  - não chama revalidatePath (não deve re-renderizar a tela a cada salvamento).
- */
+// Grava o conteúdo sempre; dados do cliente só se já estiverem válidos. Sem revalidatePath.
 export async function salvarRascunho(entrada: SalvarRascunhoEntrada): Promise<SaveResult> {
   await requirePrestador();
 
@@ -167,18 +155,14 @@ export async function salvarRascunho(entrada: SalvarRascunhoEntrada): Promise<Sa
   const telefone = phoneSchema.safeParse(cliente.telefone);
   if (telefone.success) campos.cliente_telefone = telefone.data ?? null;
 
-  // Sempre atualiza a proposta: o trigger do banco carimba `atualizado_em`, que a listagem usa.
+  // O trigger carimba atualizado_em, usado na listagem.
   const { error: erroProposta } = await supabase.from("propostas").update(campos).eq("id", id);
   if (erroProposta) return { ok: false };
 
   return { ok: true };
 }
 
-/**
- * Editar uma proposta já enviada: cria a versão N+1 (cópia da atual) como rascunho. A versão
- * anterior fica intacta no banco, com seu hash. O trigger recusa se a proposta já foi aceita
- * (nesse caso o caminho é um aditivo) ou se já existe uma versão em rascunho.
- */
+// A versão anterior fica intacta com o seu hash. O trigger recusa se a proposta já foi aceita.
 export async function criarNovaVersao(propostaId: string): Promise<void> {
   await requirePrestador();
   if (!z.uuid().safeParse(propostaId).success) redirect("/propostas");
@@ -203,8 +187,8 @@ export async function criarNovaVersao(propostaId: string): Promise<void> {
 
   const { error } = await supabase.from("proposta_versoes").insert({
     proposta_id: propostaId,
-    numero: proposta.versao_atual + 1, // o banco recalcula: este valor é só ilustrativo
-    // Entrega tem outro formato de conteúdo; as fotos perdem o selo (o envio seguinte recalcula).
+    numero: proposta.versao_atual + 1, // o banco recalcula o número
+    // As fotos perdem o selo: o próximo envio recalcula.
     conteudo: (proposta.tipo === "entrega"
       ? semSelo(normalizarEntrega(atual?.conteudo))
       : normalizarConteudo(atual?.conteudo)) as unknown as NonNullable<Json>,
@@ -216,7 +200,6 @@ export async function criarNovaVersao(propostaId: string): Promise<void> {
   redirect(`/propostas/${propostaId}/editar?etapa=2`);
 }
 
-/** Exclui um rascunho que nunca foi enviado. Enviada nunca é excluída (o banco bloqueia). */
 export async function excluirRascunho(propostaId: string): Promise<void> {
   await requirePrestador();
   if (!z.uuid().safeParse(propostaId).success) redirect("/propostas");
@@ -234,27 +217,18 @@ export async function excluirRascunho(propostaId: string): Promise<void> {
   redirect("/propostas?excluida=1");
 }
 
-/* ------------------------------ Envio (Fase 5) ------------------------------ */
-
 export type EnvioResultado =
   | { ok: true; resumo: ResumoEnvio }
   | { ok: false; message: string; erros?: Record<string, string> };
 
 const FALHA_ENVIO = "Não conseguimos enviar agora. Seus dados continuam aqui, tente de novo.";
 
-/** O link da proposta. O token só existe aqui, na memória, e na resposta que o entrega ao prestador. */
 function montarLink(token: string) {
   return `${publicEnv().NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/p/${token}`;
 }
 
-/**
- * ENVIAR: trava a versão atual com o seu hash, gera o link e registra o evento (tudo de uma vez,
- * numa função do banco).
- *
- * O servidor NÃO usa o que o navegador tem em tela: relê o rascunho do banco e valida tudo de novo.
- * (O assistente salva antes de chamar esta ação.) O token é gerado aqui, na memória: o banco recebe
- * só o HMAC dele, então nem quem tiver acesso ao banco consegue reconstruir o link.
- */
+// Relê o rascunho do banco e valida tudo de novo. O token só existe em memória: o banco recebe
+// o HMAC dele.
 export async function enviarProposta(propostaId: string): Promise<EnvioResultado> {
   const profile = await requirePrestador();
   if (!z.uuid().safeParse(propostaId).success)
@@ -306,7 +280,7 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
     })
     .single();
   if (error || !data) {
-    // Mensagem fixa: o texto do erro do banco não vai para a tela.
+    // O texto do erro do banco não vai para a tela.
     if (error?.message.includes("não está em rascunho")) {
       return {
         ok: false,
@@ -316,10 +290,7 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
     return { ok: false, message: FALHA_ENVIO };
   }
 
-  // ATENÇÃO: aqui NÃO se chama revalidatePath. Em uma Server Action isso faz o Next re-renderizar a
-  // página ATUAL (/editar), que, vendo a proposta já enviada, redireciona para o detalhe e
-  // desmonta a tela antes de ela mostrar o link, que só existe nesta resposta. Lista, painel e
-  // detalhe não precisam: páginas dinâmicas buscam dados novos a cada visita.
+  // Não chamar revalidatePath: ele re-renderiza /editar, que redireciona antes de o link aparecer.
   return {
     ok: true,
     resumo: {
@@ -338,11 +309,7 @@ export async function enviarProposta(propostaId: string): Promise<EnvioResultado
   };
 }
 
-/**
- * NOVO LINK: o banco só guarda o hash do token, então o link já enviado não pode ser mostrado de
- * novo. Quem perdeu o link gera outro; o anterior deixa de funcionar na hora (decisão D18).
- * A validade NÃO é renovada: para isso é preciso uma nova versão.
- */
+// O banco só tem o hash do token: um link perdido não pode ser mostrado de novo, só substituído.
 export async function gerarNovoLink(propostaId: string): Promise<EnvioResultado> {
   const profile = await requirePrestador();
   if (!z.uuid().safeParse(propostaId).success)

@@ -17,12 +17,6 @@ import {
   normalizarEntrega,
 } from "@/lib/validation/entrega";
 
-/*
- * Aditivo e aceite de entrega (Fase 8). Reutilizam a tabela `propostas` (tipo + proposta_pai_id):
- * o banco já garante, por trigger, que só se cria um deles para uma proposta ACEITA do mesmo
- * prestador. Aqui só montamos o rascunho inicial, a partir da proposta original.
- */
-
 const idSchema = z.uuid();
 const TITULO_MAX = 140;
 
@@ -46,7 +40,6 @@ async function lerPai(paiId: string) {
   return { supabase, pai, conteudo: normalizarConteudo(versao?.conteudo) };
 }
 
-/** "Novo aditivo": rascunho ligado à proposta aceita, com cliente, pagamento e garantia copiados. */
 export async function criarAditivo(paiId: string): Promise<void> {
   const profile = await requirePrestador();
   if (!idSchema.safeParse(paiId).success) redirect("/propostas");
@@ -80,7 +73,7 @@ export async function criarAditivo(paiId: string): Promise<void> {
     .from("proposta_versoes")
     .insert({ proposta_id: novo.id, numero: 1, conteudo });
   if (erroVersao) {
-    await supabase.from("propostas").delete().eq("id", novo.id); // sem versão não serve: não deixa órfão
+    await supabase.from("propostas").delete().eq("id", novo.id);
     redirect(`/propostas/${paiId}?erro=aditivo`);
   }
 
@@ -89,7 +82,6 @@ export async function criarAditivo(paiId: string): Promise<void> {
   redirect(`/propostas/${novo.id}/editar?etapa=2`);
 }
 
-/** "Registrar entrega": o checklist já vem com os itens da proposta, ainda sem marcar. */
 export async function criarEntrega(paiId: string): Promise<void> {
   const profile = await requirePrestador();
   if (!idSchema.safeParse(paiId).success) redirect("/propostas");
@@ -152,11 +144,7 @@ const salvarEntregaSchema = z.object({
 
 export type SalvarEntregaEntrada = z.input<typeof salvarEntregaSchema>;
 
-/**
- * Autosave do rascunho de entrega. Mesmo critério do rascunho de proposta: grava o que veio
- * (nunca perde o que foi digitado) e recusa em vez de truncar. As fotos só entram se o caminho
- * for da pasta deste prestador e desta entrega.
- */
+// As fotos só entram se o caminho for da pasta deste prestador e desta entrega.
 export async function salvarEntrega(entrada: SalvarEntregaEntrada): Promise<SaveResult> {
   const profile = await requirePrestador();
 
@@ -191,7 +179,7 @@ export async function salvarEntrega(entrada: SalvarEntregaEntrada): Promise<Save
     .select("id");
   if (error || !gravadas?.length) return { ok: false };
 
-  // Regrava o título (igual) só para o trigger carimbar `atualizado_em`, que a listagem usa.
+  // Regrava o título só para o trigger carimbar atualizado_em.
   const { error: erroProposta } = await supabase
     .from("propostas")
     .update({ titulo: proposta.titulo })

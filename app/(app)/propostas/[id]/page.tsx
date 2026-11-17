@@ -55,7 +55,6 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
     ehEntrega && versao.entrega
       ? await urlsDasFotos(await createClient(), versao.entrega.fotos, profile.id, proposta.id)
       : {};
-  // Rascunho de entrega se edita numa tela só; proposta e aditivo, no assistente (etapas 2 e 4).
   const editarHref = (etapa: number) =>
     `/propostas/${proposta.id}/editar${ehEntrega ? "" : `?etapa=${etapa}`}`;
 
@@ -253,7 +252,6 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
                     {T.aceitaPor} {proposta.aceite.clienteNome}
                     {proposta.aceite.cpf ? ` (CPF ${maskCpf(proposta.aceite.cpf)})` : ""}.
                   </p>
-                  {/* Link comum (não <Link>): é uma rota de download, não uma página. */}
                   <Button asChild>
                     <a href={`/propostas/${proposta.id}/comprovante`}>
                       <Download aria-hidden="true" />

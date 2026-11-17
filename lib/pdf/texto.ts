@@ -1,16 +1,7 @@
-/*
- * As fontes embutidas no PDF (subconjunto "latin" da Manrope e da JetBrains Mono) só têm desenho
- * para os caracteres abaixo. Um caractere sem desenho sairia como lixo no PDF (um emoji virava
- * "=M"). Aqui o texto é adaptado ANTES de desenhar: trocas conhecidas (≈ → ~), letras com acento
- * fora do Latin-1 perdem o acento (ẽ → e), e o resto vira "?".
- *
- * Isso muda só a APRESENTAÇÃO no PDF. O documento guardado no banco, coberto pelo hash, continua
- * exatamente como foi enviado (e é ele que o /verificar confere).
- *
- * Lista conferida com o fontkit sobre os arquivos de lib/pdf/fonts (interseção de todos os pesos).
- */
+// Caracteres que as fontes embutidas desenham. O resto é adaptado só no PDF: o documento
+// guardado (e o hash) continua igual.
 const SUPORTADOS: [number, number][] = [
-  [0x0a, 0x0a], // quebra de linha (não é desenhada, mas o layout usa)
+  [0x0a, 0x0a],
   [0x0d, 0x0d],
   [0x20, 0x7e],
   [0xa0, 0xff],
@@ -51,7 +42,6 @@ const TROCAS: Record<string, string> = {
 
 const suportado = (cp: number) => SUPORTADOS.some(([a, b]) => cp >= a && cp <= b);
 
-/** Adapta um texto para as fontes do PDF (ver comentário do arquivo). */
 export function paraFontePdf(texto: string): string {
   let saida = "";
   for (const ch of texto) {
@@ -64,9 +54,7 @@ export function paraFontePdf(texto: string): string {
       saida += TROCAS[ch];
       continue;
     }
-    // Variações de emoji, junções invisíveis e marcas combinantes soltas: só somem.
     if (/[​-‍︎️̀-ͯ]/u.test(ch)) continue;
-    // Letra acentuada fora do Latin-1 (ex.: "ẽ"): tenta a forma decomposta sem o acento.
     const base = ch.normalize("NFKD").replace(/[̀-ͯ]/g, "");
     if (base && [...base].every((c) => suportado(c.codePointAt(0)!))) {
       saida += base;
@@ -77,7 +65,6 @@ export function paraFontePdf(texto: string): string {
   return saida;
 }
 
-/** Aplica `paraFontePdf` a todos os textos de um objeto (cópia; o original não muda). */
 export function sanitizarParaPdf<T>(valor: T): T {
   if (typeof valor === "string") return paraFontePdf(valor) as T;
   if (Array.isArray(valor)) return valor.map(sanitizarParaPdf) as T;

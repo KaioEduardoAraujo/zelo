@@ -8,11 +8,7 @@ import type { EventoTipo } from "@/lib/status";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { ConteudoRascunho } from "@/lib/validation/proposta";
 
-/*
- * Tudo o que o comprovante (PDF) mostra, lido do banco com a service_role. Só é chamado no
- * servidor, depois de alguém ter provado que pode ver este aceite: o cliente pelo token do link,
- * o prestador pela sessão (e o RLS), ou o próprio servidor logo depois de gravar o aceite.
- */
+// Lê com a service_role: quem chama já conferiu a permissão (token ou sessão).
 
 export type EventoComprovante = {
   tipo: EventoTipo;
@@ -39,17 +35,11 @@ export type DadosComprovante = {
   };
   proposta: { id: string; prestadorId: string; tipo: "proposta" | "aditivo" | "entrega" };
   versao: { id: string; numero: number; enviadaEm: string | null; hash: string };
-  /** Retrato das partes no envio (D24). */
   partes: SnapshotDocumento;
-  /** Proposta e aditivo. Em entrega vem vazio (veja `entrega`). */
   conteudo: ConteudoRascunho;
-  /** Só em entrega. */
   entrega: ConteudoEntrega | null;
-  /** O hash recalculado agora, a partir do conteúdo guardado, bate com o gravado? */
   integro: boolean;
-  /** Trilha até o momento do aceite (inclusive). Eventos posteriores não entram no PDF. */
   eventos: EventoComprovante[];
-  /** E-mail ATUAL do prestador (para mandar a cópia). Não vai para o PDF. */
   prestadorEmail: string;
 };
 
@@ -81,8 +71,7 @@ export async function carregarDadosComprovante(aceiteId: string): Promise<DadosC
   if (!p || !partes) return null;
 
   const [{ data: eventos }, { data: perfil }] = await Promise.all([
-    // `criado_em` é sempre now() (trigger) e now() é o mesmo durante a transação: o evento
-    // "aceita", gravado junto com o aceite, tem exatamente o mesmo horário e entra no filtro.
+    // now() é o mesmo durante a transação: o evento "aceita" tem o horário exato do aceite.
     svc
       .from("auditoria_eventos")
       .select("tipo, ip, user_agent, criado_em")

@@ -13,11 +13,6 @@ import { isActive, isFocusMode, NAV_ITEMS, NEW_PROPOSAL, pageTitle } from "./nav
 
 type ShellProfile = { nome: string; empresaNome: string | null };
 
-/**
- * Shell do prestador (DESIGN.md 7.1).
- * Desktop (≥1024px): barra lateral CLARA de 240px — clara para a logo funcionar sem versão negativa.
- * Mobile: barra superior (símbolo + título) e navegação inferior com 4 itens + "Nova proposta".
- */
 export function AppShell({
   profile,
   children,
@@ -37,7 +32,6 @@ export function AppShell({
         Pular para o conteúdo
       </a>
 
-      {/* Barra lateral (desktop) */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface lg:flex">
         <Link
           href="/inicio"
@@ -98,7 +92,6 @@ export function AppShell({
         </div>
       </aside>
 
-      {/* Barra superior (mobile) */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/95 px-4 backdrop-blur lg:hidden">
         <Link href="/inicio" aria-label="Zelo, início" className="rounded-[var(--radius-control)]">
           <Image src="/brand/symbol.svg" alt="" width={28} height={28} unoptimized />
@@ -116,7 +109,6 @@ export function AppShell({
         <div className="mx-auto max-w-5xl">{children}</div>
       </main>
 
-      {/* Navegação inferior (mobile). Some nas telas de modo foco (assistente). */}
       {!foco && (
         <nav
           aria-label="Principal"

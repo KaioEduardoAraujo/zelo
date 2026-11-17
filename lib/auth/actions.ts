@@ -14,19 +14,12 @@ import {
   signupSchema,
 } from "@/lib/validation/auth";
 
-/*
- * Server Actions de autenticação. Regras:
- * - Toda entrada passa pelo Zod (FormData vem do navegador e não é confiável).
- * - Mensagens de erro não revelam se um e-mail está cadastrado (evita "enumeração de contas").
- * - Senhas nunca voltam para o navegador nem são logadas.
- */
+// Mensagens de erro não revelam se um e-mail está cadastrado.
 
 export type FormState = {
   errors?: Record<string, string>;
-  /** Mensagem geral (erro ou sucesso) exibida no topo do formulário. */
   message?: string;
   ok?: boolean;
-  /** Valores digitados (exceto senhas), para o formulário não "esvaziar" após um erro. */
   values?: Record<string, string>;
 };
 
@@ -39,8 +32,7 @@ const MENSAGEM_SUSPENSA =
   "Sua conta está suspensa. Fale com o administrador do Zelo para reativá-la. Os links de propostas já enviados continuam funcionando para os seus clientes.";
 
 function authErrorMessage(code: string | undefined): string {
-  // Suspender também bane o usuário no Supabase Auth (Fase 9): o login falha com este código,
-  // só depois de a senha estar certa. A explicação continua a mesma de antes.
+  // Conta suspensa também é banida no Auth: o login falha com este código.
   if (code === "user_banned") return MENSAGEM_SUSPENSA;
   if (code === "email_not_confirmed")
     return "Confirme seu e-mail pelo link que enviamos antes de entrar.";
@@ -71,7 +63,6 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     .eq("id", data.user.id)
     .single();
 
-  // Conta suspensa: encerra a sessão que acabou de abrir e explica o motivo.
   if (!profile?.ativo) {
     await supabase.auth.signOut();
     return { message: MENSAGEM_SUSPENSA, values };
@@ -96,8 +87,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     email,
     password,
     options: {
-      // Vai para raw_user_meta_data; o trigger handle_new_user copia para profiles.
-      // Um campo "role" mandado aqui seria ignorado pelo trigger.
+      // O trigger handle_new_user ignora um "role" mandado aqui.
       data: metadata,
       emailRedirectTo: `${publicEnv().NEXT_PUBLIC_APP_URL}/auth/confirm?next=/inicio`,
     },
@@ -123,7 +113,6 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     };
   }
 
-  // Com confirmação de e-mail desligada (decisão do MVP), o Supabase já devolve a sessão.
   if (data.session) redirect("/inicio");
 
   return {
@@ -141,8 +130,6 @@ export async function requestPasswordReset(
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values };
 
   const supabase = await createClient();
-  // O link do e-mail é montado pelo template supabase/templates/recuperar-senha.html
-  // e passa por /auth/confirm, que troca o token por uma sessão de recuperação.
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${publicEnv().NEXT_PUBLIC_APP_URL}/redefinir-senha`,
   });
@@ -151,7 +138,6 @@ export async function requestPasswordReset(
     return { message: "Muitos pedidos seguidos. Espere alguns minutos e tente de novo.", values };
   }
 
-  // Mesma resposta exista ou não a conta: não revelamos quem está cadastrado.
   return {
     ok: true,
     message:

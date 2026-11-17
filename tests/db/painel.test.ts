@@ -9,10 +9,6 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Fase 4: valor da versão atual na listagem (view propostas_situacao) e números do painel
- * (função resumo_painel). Ambos são SECURITY INVOKER: o RLS vale para quem consulta.
- */
 let a: Usuario;
 let b: Usuario;
 

@@ -1,16 +1,8 @@
 import { FOTO_BYTES_MAX } from "@/lib/validation/entrega";
 
-/*
- * Compressão de fotos NO NAVEGADOR, antes de enviar (celular tira fotos de 5 a 12 MB; a conexão
- * pode ser ruim e o bucket/PDF têm limite). Redimensiona para no máximo 1600 px no maior lado e
- * regrava como JPEG. O servidor NÃO confia nisto: ao enviar a entrega ele reabre cada arquivo,
- * confere tipo e tamanho e calcula o hash.
- */
-
 export const LADO_MAXIMO = 1600;
 const QUALIDADES = [0.8, 0.65, 0.5];
 
-/** Reduz mantendo a proporção; nunca amplia. */
 export function dimensoesAlvo(
   largura: number,
   altura: number,
@@ -25,7 +17,6 @@ export function dimensoesAlvo(
   };
 }
 
-/** "IMG 001.HEIC" → "IMG 001.jpg" (só para exibir). */
 export function nomeJpeg(nome: string): string {
   const base = nome.replace(/\.[^./\\]+$/, "").trim() || "foto";
   return `${base.slice(0, 100)}.jpg`;
@@ -37,7 +28,6 @@ function paraBlob(canvas: HTMLCanvasElement, qualidade: number): Promise<Blob | 
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", qualidade));
 }
 
-/** Devolve um JPEG de até `FOTO_BYTES_MAX`, ou lança ImagemInvalidaError com a mensagem para a pessoa. */
 export async function comprimirImagem(arquivo: File): Promise<{ blob: Blob; nome: string }> {
   if (!arquivo.type.startsWith("image/")) {
     throw new ImagemInvalidaError("Este arquivo não é uma imagem.");
@@ -45,7 +35,7 @@ export async function comprimirImagem(arquivo: File): Promise<{ blob: Blob; nome
 
   let bitmap: ImageBitmap;
   try {
-    // "from-image" respeita a rotação gravada pela câmera (foto de celular em pé).
+    // from-image respeita a rotação gravada pela câmera.
     bitmap = await createImageBitmap(arquivo, { imageOrientation: "from-image" });
   } catch {
     throw new ImagemInvalidaError(
@@ -65,7 +55,7 @@ export async function comprimirImagem(arquivo: File): Promise<{ blob: Blob; nome
       canvas.height = alvo.altura;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new ImagemInvalidaError("Seu navegador não conseguiu preparar a foto.");
-      // Fundo branco: PNG com transparência viraria preto no JPEG.
+      // Fundo branco: a transparência do PNG viraria preto no JPEG.
       ctx.fillStyle = "#fff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);

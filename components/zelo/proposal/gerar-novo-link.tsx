@@ -18,11 +18,7 @@ import { LinkEnvio } from "@/components/zelo/proposal/link-envio";
 import { gerarNovoLink } from "@/lib/proposals/actions";
 import type { ResumoEnvio } from "@/lib/proposals/envio";
 
-/**
- * "Gerar novo link": o banco guarda só o hash do token, então o link já enviado não pode ser
- * mostrado de novo. Gerar outro invalida o anterior na hora, por isso pede confirmação.
- * Ao fechar o diálogo o link some da memória do navegador.
- */
+// O banco só guarda o hash do token: gerar outro invalida o anterior, por isso pede confirmação.
 export function GerarNovoLink({ propostaId }: { propostaId: string }) {
   const [aberto, setAberto] = useState(false);
   const [resumo, setResumo] = useState<ResumoEnvio | null>(null);

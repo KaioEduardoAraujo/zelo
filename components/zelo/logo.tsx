@@ -4,12 +4,10 @@ import { cn } from "@/lib/utils";
 
 type LogoProps = {
   variant?: "full" | "symbol";
-  /** Altura em px. O símbolo tem mínimo de 24px (DESIGN.md 2.3). */
   height?: number;
   className?: string;
 };
 
-// Proporção do logo horizontal (viewBox do public/brand/logo.svg).
 const FULL_RATIO = 256 / 100;
 
 export function Logo({ variant = "full", height = 32, className }: LogoProps) {

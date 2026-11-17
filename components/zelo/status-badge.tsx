@@ -30,7 +30,6 @@ export const TONE_CLASS: Record<Tone, string> = {
   neutral: "bg-neutral-bg text-neutral",
 };
 
-/** Status sempre com ícone + texto + cor — nunca só cor (acessibilidade). */
 export function StatusBadge({ status, className }: { status: PropostaStatus; className?: string }) {
   const { label, tone } = STATUS[status];
   const Icon = ICON[status];

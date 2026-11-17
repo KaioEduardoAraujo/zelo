@@ -9,19 +9,12 @@ type Props = {
   prestador: { nome: string; empresa?: string | null };
   clienteNome: string;
   conteudo: ConteudoEntrega;
-  /** Título da proposta aceita a que esta entrega se refere. */
   referenciaTitulo?: string | null;
-  /** Rascunho: "N dias depois do envio". Enviada: a data em que vence. */
   validade: { dias: number } | { ate: string };
-  /** Caminho da foto → URL para exibir (assinada ou local, no editor). */
   fotoUrls: Record<string, string>;
   className?: string;
 };
 
-/**
- * O registro de entrega como o cliente o vê, no mesmo padrão visual da proposta. Só apresentação,
- * sem estado: serve para a pré-visualização do editor, o detalhe do prestador e a página pública.
- */
 export function EntregaDocument({
   titulo,
   prestador,

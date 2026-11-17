@@ -130,7 +130,6 @@ export default async function AdminPage(props: PageProps<"/admin">) {
                 <TableCell className="tabular text-right">{p.propostas}</TableCell>
                 <TableCell className="tabular text-right">{p.aceites}</TableCell>
                 <TableCell>
-                  {/* Ícone + texto: situação nunca só por cor (DESIGN.md) */}
                   <span
                     className={
                       p.ativo

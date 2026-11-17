@@ -23,15 +23,7 @@ import { sanitizarParaPdf } from "@/lib/pdf/texto";
 import { textosDe } from "@/lib/tipos";
 import { totalItemCentavos } from "@/lib/validation/proposta";
 
-/*
- * O comprovante em PDF, escrito em JSX com flexbox (@react-pdf/renderer, escolhido na Fase 7:
- * fica parecido com o resto do app; o pdf-lib exigiria posicionar cada texto por coordenadas).
- *
- * Fontes: Manrope e JetBrains Mono embutidas (licença OFL, em lib/pdf/fonts/). As fontes padrão
- * do PDF (Helvetica) só conhecem um conjunto pequeno de caracteres; com fonte embutida, acentos,
- * aspas e "m²" saem certos, e o comprovante tem a cara da marca.
- * O next.config.ts inclui a pasta de fontes no pacote do servidor (outputFileTracingIncludes).
- */
+// Fontes embutidas (lib/pdf/fonts, OFL): as fontes padrão do PDF não desenham todos os caracteres.
 
 const PASTA_FONTES = path.join(process.cwd(), "lib/pdf/fonts");
 let fontesRegistradas = false;
@@ -54,15 +46,14 @@ function registrarFontes() {
       { src: path.join(PASTA_FONTES, "jetbrains-mono-latin-500-normal.woff"), fontWeight: 500 },
     ],
   });
-  // Sem hifenização automática (ela é feita para inglês e quebraria palavras em português).
-  // Só palavras enormes (ex.: um link colado) são partidas, para não vazar da página.
+  // Sem hifenização (a do react-pdf é para inglês).
   Font.registerHyphenationCallback((palavra) =>
     palavra.length > 64 ? (palavra.match(/.{1,40}/g) ?? [palavra]) : [palavra],
   );
   fontesRegistradas = true;
 }
 
-// Tokens da marca (styles/tokens.css). O PDF não lê CSS: os valores são repetidos aqui.
+// O PDF não lê CSS: cores copiadas de styles/tokens.css.
 const COR = {
   navy950: "#0E1D2B",
   navy900: "#12263A",
@@ -129,8 +120,7 @@ const s = StyleSheet.create({
   valor: { color: COR.navy900 },
   valorForte: { fontWeight: 700, color: COR.navy950 },
   paragrafo: { color: COR.navy900, marginBottom: 4 },
-  // Larguras fixas em vez de `flex: 1`/`gap`: com eles, o react-pdf não media a altura da coluna
-  // e a descrição se sobrepunha ao detalhe do item.
+  // Larguras fixas: com flex: 1 o react-pdf não media a altura e as linhas se sobrepunham.
   item: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -197,18 +187,15 @@ const RESULTADO: Record<DadosComprovante["aceite"]["resultado"], string> = {
   ajuste: "Ajuste solicitado",
 };
 
-/** Fotos da entrega já baixadas (só JPEG e PNG: o react-pdf não desenha WebP), por caminho. */
 export type ImagensPdf = Record<string, { data: Buffer; formato: "jpg" | "png" }>;
 
 export type ComprovanteProps = {
   dados: Omit<DadosComprovante, "prestadorEmail">;
-  /** Bytes das fotos de uma entrega. Ficam FORA de `dados` porque o texto de `dados` é sanitizado. */
+  // Fora de `dados` porque o texto de `dados` é sanitizado.
   imagens?: ImagensPdf;
-  /** Endereço da página pública de verificação, ex.: https://zelo.app/verificar */
   urlVerificacao: string;
 };
 
-/** Selo da marca (anel + check), o mesmo desenho do <AcceptanceStamp />. */
 function Selo({ tamanho }: { tamanho: number }) {
   return (
     <Svg width={tamanho} height={tamanho} viewBox="0 0 48 48">
@@ -280,7 +267,6 @@ export function ComprovantePdf({ dados, urlVerificacao, imagens = {} }: Comprova
       language="pt-BR"
     >
       <Page size="A4" style={s.page}>
-        {/* Topo: marca e identificação do comprovante */}
         <View style={s.topo}>
           <View style={s.marca}>
             <Selo tamanho={30} />
@@ -295,7 +281,6 @@ export function ComprovantePdf({ dados, urlVerificacao, imagens = {} }: Comprova
           </View>
         </View>
 
-        {/* Resumo do registro */}
         <View style={s.selo} wrap={false}>
           <Selo tamanho={40} />
           <View style={{ flex: 1 }}>
@@ -417,7 +402,6 @@ export function ComprovantePdf({ dados, urlVerificacao, imagens = {} }: Comprova
   );
 }
 
-/** Escopo, itens, exclusões, pagamento e garantia (proposta e aditivo). */
 function CorpoProposta({ conteudo }: { conteudo: DadosComprovante["conteudo"] }) {
   return (
     <>
@@ -476,7 +460,6 @@ function CorpoProposta({ conteudo }: { conteudo: DadosComprovante["conteudo"] })
   );
 }
 
-/** Resumo, checklist e fotos da entrega. Cada foto leva o seu SHA-256 (o hash do documento cobre os bytes). */
 function CorpoEntrega({
   entrega,
   imagens,
@@ -540,10 +523,8 @@ function CorpoEntrega({
   );
 }
 
-/** Gera o PDF em memória. Roda só no servidor (runtime Node). */
 export async function renderizarComprovante(props: ComprovanteProps): Promise<Buffer> {
   registrarFontes();
-  // Textos digitados por pessoas podem ter caracteres que a fonte não desenha (lib/pdf/texto.ts).
   const dados = sanitizarParaPdf(props.dados);
   return renderToBuffer(
     <ComprovantePdf dados={dados} urlVerificacao={props.urlVerificacao} imagens={props.imagens} />,

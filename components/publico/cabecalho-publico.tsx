@@ -1,15 +1,10 @@
 import Image from "next/image";
 
-/**
- * Cabeçalho da página do cliente (DESIGN.md 7.2.7): o nome do prestador em destaque, "via Zelo"
- * discreto e o corte diagonal teal no canto (o motivo gráfico da marca, derivado do símbolo).
- */
 export function CabecalhoPublico({
   nome,
   enviadaVia = "Proposta enviada via",
 }: {
   nome: string;
-  /** "Proposta enviada via", "Aditivo enviado via"... */
   enviadaVia?: string;
 }) {
   return (

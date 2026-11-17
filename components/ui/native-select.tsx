@@ -3,7 +3,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/** <select> nativo estilizado: no celular abre o seletor do próprio sistema (melhor que um custom). */
 function NativeSelect({ className, children, ...props }: React.ComponentProps<"select">) {
   return (
     <div className="relative">

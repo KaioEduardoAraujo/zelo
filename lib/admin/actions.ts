@@ -12,30 +12,18 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { flattenIssues } from "@/lib/validation/errors";
 import { conteudoPropostaSchema, conteudoRascunhoSchema } from "@/lib/validation/proposta";
 
-/*
- * Ações do administrador. Toda ação confere o papel NO SERVIDOR (requireAdmin) e o banco repete
- * a regra (RLS e triggers): o admin só muda `ativo` de OUTROS perfis e nunca toca em aceites.
- */
-
 const idSchema = z.uuid();
 
-// ~100 anos. O Auth do Supabase não tem "banido para sempre": é uma duração.
+// O Auth não tem ban permanente: ~100 anos.
 const BAN_LONGO = "876000h";
 
-/**
- * Suspender / reativar um prestador (decisão D28):
- *  1. `profiles.ativo` muda pelo cliente do admin (o trigger só deixa o admin mexer no `ativo`
- *     de OUTRA pessoa, e só em perfis; RLS da conta suspensa bloqueia criar/alterar propostas);
- *  2. o usuário é banido no Supabase Auth: o token de renovação para de funcionar.
- * Links já enviados continuam válidos: a página do cliente não depende da conta do prestador.
- * Se o passo 2 falhar, o passo 1 é desfeito (não fica meio suspenso).
- */
+// Se o ban no Auth falhar, desfaz a mudança no perfil.
 export async function alterarSituacaoPrestador(
   prestadorId: string,
   ativar: boolean,
 ): Promise<void> {
   const admin = await requireAdmin();
-  // Argumentos de `.bind()` chegam do navegador sem criptografia: valida o tipo também.
+  // Argumentos de .bind() chegam do navegador sem criptografia.
   if (
     !idSchema.safeParse(prestadorId).success ||
     !z.boolean().safeParse(ativar).success ||
@@ -72,8 +60,6 @@ export async function alterarSituacaoPrestador(
   redirect(`/admin?ok=${ativar ? "reativado" : "suspenso"}`);
 }
 
-/* ------------------------- Templates globais ------------------------- */
-
 export type ModeloGlobalResultado =
   { ok: true } | { ok: false; errors?: Record<string, string>; message?: string };
 
@@ -90,7 +76,6 @@ const salvarSchema = z.object({
 
 export type SalvarModeloGlobalEntrada = z.input<typeof salvarSchema>;
 
-/** Um modelo é sempre um conteúdo COMPLETO (formato estrito), igual ao dos modelos dos prestadores. */
 export async function salvarModeloGlobal(
   entrada: SalvarModeloGlobalEntrada,
 ): Promise<ModeloGlobalResultado> {
@@ -121,7 +106,7 @@ export async function salvarModeloGlobal(
       conteudo: estrito.data,
     })
     .eq("id", parsed.data.id)
-    .is("dono_id", null) // só globais; o RLS repete a regra
+    .is("dono_id", null)
     .select("id");
   if (error || !data?.length) {
     return {
@@ -133,7 +118,6 @@ export async function salvarModeloGlobal(
   return { ok: true };
 }
 
-/** Novo modelo global: nasce INATIVO (ninguém o vê) até ser preenchido e ativado. */
 export async function criarModeloGlobal(): Promise<void> {
   await requireAdmin();
   const supabase = await createClient();
@@ -165,7 +149,6 @@ export async function alternarModeloGlobal(id: string, ativo: boolean): Promise<
     .eq("id", id)
     .is("dono_id", null)
     .maybeSingle();
-  // Só vai para o ar um modelo completo (o que um prestador vai usar para começar uma proposta).
   if (ativo && !conteudoPropostaSchema.safeParse(normalizarConteudo(atual?.conteudo)).success) {
     redirect("/admin/templates?erro=incompleto");
   }
@@ -183,7 +166,6 @@ export async function excluirModeloGlobal(id: string): Promise<void> {
   await requireAdmin();
   if (!idSchema.safeParse(id).success) redirect("/admin/templates");
   const supabase = await createClient();
-  // Propostas criadas a partir de um modelo guardam uma CÓPIA do conteúdo: excluir não as afeta.
   const { error } = await supabase.from("templates").delete().eq("id", id).is("dono_id", null);
   if (error) redirect("/admin/templates?erro=excluir");
   revalidatePath("/admin/templates");

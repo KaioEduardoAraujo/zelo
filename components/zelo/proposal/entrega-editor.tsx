@@ -50,7 +50,6 @@ type Props = {
   propostaId: string;
   prestadorId: string;
   inicial: ConteudoEntrega;
-  /** URLs assinadas das fotos que já estão no rascunho. */
   fotoUrlsIniciais: Record<string, string>;
   titulo: string;
   clienteNome: string;
@@ -60,14 +59,8 @@ type Props = {
 
 const T = textosDe("entrega");
 
-/**
- * Editor do aceite de entrega: o que foi entregue, checklist e fotos, numa tela só (o conteúdo é
- * curto), com autosave igual ao da proposta e a mesma confirmação de envio.
- *
- * As fotos sobem direto do navegador para o bucket privado `entregas` (a pasta é do prestador:
- * o RLS recusa qualquer outro caminho) depois de comprimidas. O que fica no rascunho é só o
- * caminho; o servidor confere o arquivo e calcula o hash no envio.
- */
+// As fotos sobem direto ao bucket privado (o RLS só aceita a pasta do prestador); o servidor
+// confere cada arquivo no envio.
 export function EntregaEditor(props: Props) {
   const { propostaId, prestadorId } = props;
   const router = useRouter();
@@ -103,8 +96,6 @@ export function EntregaEditor(props: Props) {
   const erros = useMemo(() => validarEntrega(conteudo), [conteudo]);
   const erro = (campo: string) =>
     tentou ? (erros[campo] ?? errosServidor[campo]) : errosServidor[campo];
-
-  /* ------------------------------ Fotos ------------------------------ */
 
   async function adicionarFotos(lista: FileList | null) {
     const arquivos = Array.from(lista ?? []);
@@ -155,8 +146,6 @@ export function EntregaEditor(props: Props) {
     setErrosFoto(falhas);
   }
 
-  /* ------------------------------ Envio ------------------------------ */
-
   const concluirSemEnviar = async () => {
     setSaindo(true);
     if (!(await flush())) {
@@ -170,7 +159,6 @@ export function EntregaEditor(props: Props) {
   };
 
   const pedirEnvio = () => {
-    // Linhas de checklist em branco não bloqueiam: somem sozinhas antes de validar.
     mudar((c) => ({ ...c, checklist: c.checklist.filter((i) => i.texto.trim() !== "") }));
     setTentou(true);
     if (Object.keys(validarEntrega(conteudoRef.current)).length > 0) {
@@ -184,7 +172,7 @@ export function EntregaEditor(props: Props) {
   const enviar = async () => {
     setEnviando(true);
     setErroEnvio(null);
-    // O servidor relê o rascunho do banco: garante que o que está na tela já foi salvo.
+    // O servidor relê o rascunho do banco: salva antes.
     if (!(await flush())) {
       setEnviando(false);
       setErroEnvio(
@@ -530,7 +518,7 @@ export function EntregaEditor(props: Props) {
           </form>
 
           <aside aria-label="Pré-visualização do documento" className="hidden xl:block">
-            {/* tabIndex: área com rolagem própria precisa ser alcançável pelo teclado (WCAG 2.1.1). */}
+            {/* Área com rolagem própria precisa ser alcançável pelo teclado. */}
             <div
               tabIndex={0}
               className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)] focus-visible:outline-2"

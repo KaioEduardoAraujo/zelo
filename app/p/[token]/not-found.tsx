@@ -1,9 +1,6 @@
 import Image from "next/image";
 
-/**
- * Link inválido. Mesma resposta para token malformado, inexistente ou substituído por um link
- * novo: não revela se a proposta existe. Sem links para a área logada (é a página do cliente).
- */
+// Mesma resposta para token malformado, inexistente ou substituído.
 export default function LinkInvalido() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">

@@ -18,13 +18,11 @@ export default async function EditarPropostaPage(props: PageProps<"/propostas/[i
   const { etapa } = await props.searchParams;
   const proposta = await carregarProposta(id);
 
-  // Só rascunho se edita. Proposta enviada gera uma NOVA versão pela página de detalhe.
   if (proposta.status !== "rascunho") redirect(`/propostas/${id}`);
 
   const versao = proposta.versoes.find((v) => v.numero === proposta.versaoAtual);
   if (!versao) redirect(`/propostas/${id}`);
 
-  // Aceite de entrega: conteúdo próprio (checklist e fotos), editor de uma tela só.
   if (proposta.tipo === "entrega") {
     const conteudo = versao.entrega ?? entregaVazia();
     const supabase = await createClient();

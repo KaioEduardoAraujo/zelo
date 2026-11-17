@@ -3,10 +3,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/**
- * Estado vazio com ação (DESIGN.md 6): convite para agir, não lamento.
- * O traço diagonal discreto é o motivo gráfico da marca.
- */
 export function EmptyState({
   title,
   description,
@@ -25,7 +21,6 @@ export function EmptyState({
         className,
       )}
     >
-      {/* Corte diagonal da marca (45°), discreto, acima do título. */}
       <svg aria-hidden="true" viewBox="0 0 32 32" className="mx-auto mb-4 size-8">
         <path
           d="M4 28 L28 4"

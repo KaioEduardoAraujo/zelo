@@ -56,9 +56,7 @@ import { textosDe, type TipoDocumento } from "@/lib/tipos";
 import { totalCentavos } from "@/lib/validation/proposta";
 
 type WizardProps = {
-  /** Proposta ou aditivo (a entrega tem editor próprio). Muda só os textos. */
   tipo: TipoDocumento;
-  /** Aditivo: título da proposta aceita de onde nasceu. */
   referenciaTitulo: string | null;
   propostaId: string;
   inicial: DraftForm;
@@ -66,13 +64,6 @@ type WizardProps = {
   prestador: { nome: string; empresa: string | null };
 };
 
-/**
- * Assistente de proposta em 4 etapas (DESIGN.md 7.2.4): Cliente → Escopo → Valores → Revisar.
- * Desktop largo: formulário à esquerda e pré-visualização ao vivo à direita. Mobile: botão
- * "Ver como o cliente verá" abre a pré-visualização numa bottom sheet.
- *
- * Cada alteração agenda um autosave (debounce de 1,5 s). O avanço de etapa é validado.
- */
 export function ProposalWizard({
   tipo,
   referenciaTitulo,
@@ -84,7 +75,7 @@ export function ProposalWizard({
   const T = textosDe(tipo);
   const router = useRouter();
   const [form, setForm] = useState(inicial);
-  const formRef = useRef(inicial); // valor mais recente, para handlers que rodam em sequência
+  const formRef = useRef(inicial);
   const [etapa, setEtapa] = useState<Etapa>(etapaInicial);
   const [tentou, setTentou] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
@@ -123,7 +114,6 @@ export function ProposalWizard({
     (fn) =>
       mudar((f) => {
         const conteudo = fn(f.conteudo);
-        // O total acompanha os itens na tela; o servidor recalcula de qualquer forma.
         return {
           ...f,
           conteudo: { ...conteudo, valor_total_centavos: totalCentavos(conteudo.itens) },
@@ -138,7 +128,6 @@ export function ProposalWizard({
   );
   const documento = useMemo(() => normalizarConteudo(form.conteudo), [form.conteudo]);
 
-  /* Foco no título da etapa ao trocar (leitores de tela e teclado acompanham). */
   const primeiraRender = useRef(true);
   useEffect(() => {
     if (primeiraRender.current) {
@@ -152,7 +141,6 @@ export function ProposalWizard({
     if (enviado) tituloEnvioRef.current?.focus();
   }, [enviado]);
 
-  /* Avisa ao sair com alterações ainda não salvas e salva ao esconder a aba. */
   useEffect(() => {
     const aoSair = (e: BeforeUnloadEvent) => {
       if (controller.hasUnsavedChanges) {
@@ -182,7 +170,7 @@ export function ProposalWizard({
     setTimeout(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 60);
   };
 
-  // Duplo clique em "Continuar" não pode rodar a validação e o salvamento duas vezes.
+  // Duplo clique não pode validar e salvar duas vezes.
   const avancandoRef = useRef(false);
   const avancar = async () => {
     if (avancandoRef.current) return;
@@ -196,7 +184,6 @@ export function ProposalWizard({
 
   const avancarEtapa = async () => {
     if (etapa === 2) {
-      // Linhas de exclusão em branco não bloqueiam: somem sozinhas antes de validar.
       mudarConteudo((c) => ({ ...c, exclusoes: c.exclusoes.filter((e) => e.trim() !== "") }));
     }
     setTentou(true);
@@ -228,7 +215,6 @@ export function ProposalWizard({
     router.push(`/propostas/${propostaId}`);
   };
 
-  /** Etapa 4, botão principal: valida e pede a confirmação (depois de enviada a versão trava). */
   const pedirEnvio = () => {
     setTentou(true);
     if (Object.keys(validarTudo(formRef.current)).length > 0) return;
@@ -239,7 +225,7 @@ export function ProposalWizard({
   const enviar = async () => {
     setEnviando(true);
     setErroEnvio(null);
-    // O servidor relê o rascunho do banco: garante que o que está na tela já foi salvo.
+    // O servidor relê o rascunho do banco: salva antes.
     const salvou = await flush();
     if (!salvou) {
       setEnviando(false);
@@ -252,7 +238,6 @@ export function ProposalWizard({
     try {
       r = await enviarProposta(propostaId);
     } catch {
-      // Sem conexão: o botão não pode ficar preso em "Enviando…".
       setEnviando(false);
       setErroEnvio("Não conseguimos enviar agora. Seus dados continuam aqui, tente de novo.");
       return;
@@ -265,7 +250,6 @@ export function ProposalWizard({
       return;
     }
     if (r.erros) {
-      // O servidor achou algo que a tela não achou: mostra na etapa de revisão.
       setConfirmando(false);
       setErrosServidor(r.erros);
       setTentou(true);
@@ -288,7 +272,7 @@ export function ProposalWizard({
 
   const ultima = etapa === 4;
 
-  // Depois de enviada, a tela vira "Proposta criada". O link só existe neste estado.
+  // O link só existe neste estado.
   if (enviado) {
     return (
       <div className="flex max-w-[var(--container-doc)] flex-col gap-6">
@@ -399,7 +383,7 @@ export function ProposalWizard({
 
           {!ultima && (
             <aside aria-label="Pré-visualização do documento" className="hidden xl:block">
-              {/* tabIndex: área com rolagem própria precisa ser alcançável pelo teclado (WCAG 2.1.1). */}
+              {/* Área com rolagem própria precisa ser alcançável pelo teclado. */}
               <div
                 tabIndex={0}
                 className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)] focus-visible:outline-2"
@@ -455,8 +439,6 @@ export function ProposalWizard({
     </ErrosProvider>
   );
 }
-
-/* ----------------------------- Etapa 1 ----------------------------- */
 
 function EtapaCliente({
   form,
@@ -528,8 +510,6 @@ function EtapaCliente({
   );
 }
 
-/* ----------------------------- Etapa 4 ----------------------------- */
-
 function EtapaRevisar({
   form,
   erros,
@@ -594,7 +574,7 @@ function EtapaRevisar({
         </div>
       )}
 
-      {/* Lista (e não <dl>): cada linha tem também o botão "Editar", que não cabe num par dt/dd. */}
+      {/* <ul> e não <dl>: cada linha tem um botão. */}
       <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface">
         {[
           ["Cliente", form.clienteNome || "—", 1 as Etapa],

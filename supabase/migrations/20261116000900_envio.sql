@@ -1,22 +1,5 @@
--- =============================================================================
--- Zelo · 0009 · Envio da proposta (Fase 5)
---
--- enviar_versao()  → trava a versão atual, grava o hash, gera o link e registra o evento.
--- regenerar_link() → troca o link de uma proposta já enviada (o anterior deixa de valer).
---
--- Por que funções no banco, e não 4 chamadas da aplicação?
---   ATOMICIDADE: ou acontece tudo (versão travada + hash + status + link + evento de auditoria)
---   ou nada. Com chamadas separadas, uma falha no meio deixaria uma versão enviada sem evento
---   na trilha, ou um link sem versão travada.
---
--- Por que SECURITY DEFINER? O prestador não tem permissão de gravar em `auditoria_eventos`
--- (só o servidor grava provas). A função faz essa gravação em nome dele, mas só depois de
--- conferir, ela mesma, quem está chamando (auth.uid()) e se a proposta é dele.
---
--- Por que dois níveis? A lógica fica em `private` (não exposto pela API) e o que a API vê é um
--- invólucro SECURITY INVOKER. Assim os advisors de segurança não apontam uma função
--- DEFINER pública (ver 0007).
--- =============================================================================
+-- Funções no banco: tudo ou nada (versão travada, hash, link e evento). A lógica fica em
+-- `private` (SECURITY DEFINER, confere quem chama); a API vê um invólucro SECURITY INVOKER.
 
 create function private.enviar_versao(
   p_proposta_id uuid,
@@ -52,7 +35,7 @@ begin
   select id, prestador_id, status, versao_atual into v_proposta
   from public.propostas where id = p_proposta_id for update;
 
-  -- Mesma resposta para "não existe" e "é de outra pessoa": não revela a existência.
+  -- Mesma resposta para "não existe" e "é de outra pessoa".
   if not found or v_proposta.prestador_id <> v_uid then
     raise exception 'proposta não encontrada' using errcode = '42501';
   end if;
@@ -75,8 +58,7 @@ begin
     raise exception 'documento inválido' using errcode = '22023';
   end if;
 
-  -- O documento precisa declarar a quem pertence: esta proposta e esta versão. Isso amarra o
-  -- hash ao registro (dois documentos com o mesmo texto não geram o mesmo hash).
+  -- O documento declara proposta e versão: amarra o hash ao registro.
   if p_documento ->> 'proposta_id' is distinct from p_proposta_id::text
      or p_documento ->> 'versao' is distinct from v_versao.numero::text then
     raise exception 'o documento não corresponde a esta versão' using errcode = '22023';
@@ -92,19 +74,14 @@ begin
 
   v_validade := v_agora + make_interval(days => v_dias);
 
-  -- 1) Trava a versão: conteúdo final + hash + data do envio (o trigger impede qualquer
-  --    alteração depois disso).
   update public.proposta_versoes
      set conteudo = p_documento, hash_sha256 = p_hash, enviada_em = v_agora
    where id = v_versao.id;
 
-  -- 2) A proposta passa a "enviada", com o novo link e a validade. Enviar a versão N+1 troca o
-  --    token: o link da versão anterior deixa de funcionar.
   update public.propostas
      set status = 'enviada', token_hash = p_token_hash, validade_em = v_validade
    where id = p_proposta_id;
 
-  -- 3) Trilha de auditoria.
   insert into public.auditoria_eventos (proposta_id, versao_id, tipo, ip, user_agent, metadados)
   values (
     p_proposta_id, v_versao.id, 'enviada', p_ip, left(p_user_agent, 512),
@@ -145,8 +122,6 @@ begin
     raise exception 'proposta não encontrada' using errcode = '42501';
   end if;
 
-  -- Só faz sentido enquanto o cliente ainda pode responder. Proposta vencida pede uma nova
-  -- versão (a validade só se renova enviando de novo).
   if v_proposta.status not in ('enviada', 'visualizada') then
     raise exception 'esta proposta não aceita um novo link' using errcode = '23514';
   end if;
@@ -173,13 +148,12 @@ begin
 end;
 $$;
 
--- Funções novas nascem executáveis por todos (PUBLIC): fecha e abre só para quem precisa.
+-- Funções novas nascem executáveis por PUBLIC.
 revoke execute on function private.enviar_versao(uuid, jsonb, text, text, inet, text) from public, anon;
 revoke execute on function private.regenerar_link(uuid, text, inet, text) from public, anon;
 grant execute on function private.enviar_versao(uuid, jsonb, text, text, inet, text) to authenticated;
 grant execute on function private.regenerar_link(uuid, text, inet, text) to authenticated;
 
--- O que a API enxerga: invólucros SECURITY INVOKER (rodam como o usuário logado).
 create function public.enviar_versao(
   p_proposta_id uuid,
   p_documento jsonb,

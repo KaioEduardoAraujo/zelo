@@ -4,8 +4,6 @@ import { CircleAlert, CircleCheck, Info, LoaderCircle } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { Toaster as Sonner } from "sonner";
 
-// Toast (DESIGN.md 6): canto inferior no mobile e superior direito no desktop,
-// fecha sozinho em 5s e nunca bloqueia a ação (não é modal).
 const query = "(min-width: 768px)";
 const subscribe = (cb: () => void) => {
   const mql = window.matchMedia(query);

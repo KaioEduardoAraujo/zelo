@@ -17,13 +17,7 @@ import {
   zerarLimitesDeTaxa,
 } from "./support";
 
-/*
- * Página pública do cliente (/p/[token]): o fluxo principal do produto. O cliente NÃO tem conta:
- * estes testes usam um navegador sem login, como o celular de quem recebe o link no WhatsApp.
- */
-
-// O servidor local vê o mesmo IP em todas as requisições: os contadores do limite de taxa são
-// zerados antes de cada teste (em produção eles valem por IP real, definido pela Vercel).
+// O servidor local vê um IP só: zera o limite de taxa antes de cada teste.
 test.beforeEach(async () => {
   await zerarLimitesDeTaxa();
 });
@@ -69,7 +63,6 @@ test.describe("o cliente responde pelo link", () => {
 
     await page.goto(`/p/${s.token}`);
 
-    // O documento como o prestador o enviou
     await expect(page.getByText("Andrade Reformas").first()).toBeVisible();
     await expect(page.getByText("Proposta enviada via")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Troca de tela iPhone 12" })).toBeVisible();
@@ -77,7 +70,6 @@ test.describe("o cliente responde pelo link", () => {
     await expect(page.getByRole("heading", { name: "Não está incluso" })).toBeVisible();
     await expect(page.getByText(s.hash!)).toBeVisible();
 
-    // "Tenho dúvidas" abre o WhatsApp do prestador, já com a mensagem
     const duvidas = page.getByRole("link", { name: "Tenho dúvidas" });
     const href = (await duvidas.getAttribute("href"))!;
     expect(href.startsWith("https://wa.me/5511912345678?text=")).toBe(true);
@@ -87,7 +79,6 @@ test.describe("o cliente responde pelo link", () => {
     await expect.poll(() => statusDe(s.id), { timeout: 15_000 }).toBe("visualizada");
     await semRolagemHorizontal(page);
 
-    // Aceitar: nome já preenchido, CPF, consentimento, código por e-mail
     await page.getByRole("button", { name: "Aceitar proposta" }).click();
     const folha = page.getByRole("dialog");
     await expect(folha.getByRole("heading", { name: "Confirmar aceite" })).toBeVisible();
@@ -108,7 +99,6 @@ test.describe("o cliente responde pelo link", () => {
     });
     await expect(folha.getByText(/Guarde o comprovante: enviamos uma cópia em PDF/)).toBeVisible();
 
-    // Banco: aceite com o hash do documento, CPF só dígitos, consentimento gravado; trilha completa
     const { data: aceite } = await service
       .from("aceites")
       .select("*")
@@ -134,7 +124,6 @@ test.describe("o cliente responde pelo link", () => {
       "aceita",
     ]);
 
-    // Comprovante: baixado na hora pela tela de sucesso (gera se ainda não estiver pronto)
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       folha.getByRole("link", { name: "Baixar comprovante" }).click(),
@@ -143,7 +132,6 @@ test.describe("o cliente responde pelo link", () => {
     const pdf = readFileSync((await download.path())!);
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
 
-    // ...e por e-mail aos dois, com o PDF anexo (em segundo plano, depois da resposta)
     const anexo = {
       nome: `comprovante-${aceite!.codigo_comprovante}.pdf`,
       tipo: "application/pdf",
@@ -172,7 +160,6 @@ test.describe("o cliente responde pelo link", () => {
       .download(aceite!.pdf_path!);
     expect(Buffer.from(await guardado!.arrayBuffer()).equals(pdf)).toBe(true);
 
-    // Fechou: a página agora mostra a proposta aceita, sem botões de resposta
     await folha.getByRole("button", { name: "Voltar para a proposta" }).click();
     await expect(page.getByRole("button", { name: "Aceitar proposta" })).toHaveCount(0);
     await expect(
@@ -181,7 +168,6 @@ test.describe("o cliente responde pelo link", () => {
     await expect(page.getByText("52998224725")).toHaveCount(0);
     await semRolagemHorizontal(page);
 
-    // O prestador vê o aceite e a trilha
     if (!isMobile) {
       const contexto = await browser.newContext();
       const prestador = await contexto.newPage();
@@ -200,7 +186,6 @@ test.describe("o cliente responde pelo link", () => {
     test.setTimeout(180_000);
     const conta = await prestadorComEmpresa();
 
-    // Ajuste
     const emailA = novoEmail();
     const ajuste = await semearProposta(conta.id, { status: "enviada", clienteEmail: emailA });
     await page.goto(`/p/${ajuste.token}`);
@@ -226,7 +211,6 @@ test.describe("o cliente responde pelo link", () => {
       page.getByText(/Você pediu ajuste em .*: “Pode incluir a película de vidro\?”/),
     ).toBeVisible();
 
-    // Recusa
     const emailR = novoEmail();
     const recusa = await semearProposta(conta.id, { status: "enviada", clienteEmail: emailR });
     await page.goto(`/p/${recusa.token}`);
@@ -363,7 +347,7 @@ test.describe("estados do link", () => {
       page.getByText(/Você pediu ajuste em .*: “Pode incluir a película\?”/),
     ).toBeVisible();
 
-    // O prestador começou uma nova versão: a antiga não é mostrada nem pode ser aceita (D50)
+    // Nova versão em edição: a antiga não é mostrada nem aceita
     const atualizando = await semearProposta(conta.id, {
       status: "enviada",
       titulo: "Instalação de split",

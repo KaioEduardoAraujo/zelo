@@ -26,7 +26,6 @@ import { MaskedFields, Overlays } from "./interactive";
 
 export const metadata: Metadata = { title: "Componentes", robots: { index: false } };
 
-// Vitrine interna para revisar o design system em 375px e 1280px. Não existe em produção.
 const now = new Date("2026-11-16T12:00:00Z");
 const propostas: ProposalSummary[] = [
   {

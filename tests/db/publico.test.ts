@@ -11,10 +11,6 @@ import {
   type Usuario,
 } from "./helpers";
 
-/*
- * Fase 6: funções usadas pela página pública do cliente. Só a service_role (o servidor) as
- * executa; os triggers continuam valendo para ela.
- */
 let a: Usuario;
 const svc = () => serviceClient();
 
@@ -289,7 +285,7 @@ describe("registrar_resposta", () => {
       p_user_agent: UA,
     });
     await otp(e.propostaId, certo);
-    await responder(e.propostaId, hashAleatorio()); // uma tentativa errada antes
+    await responder(e.propostaId, hashAleatorio());
 
     const { data, error } = await responder(e.propostaId, certo);
     expect(error).toBeNull();
@@ -377,7 +373,7 @@ describe("registrar_resposta", () => {
       .select("pdf_path")
       .eq("versao_id", recusa.versaoId)
       .single();
-    expect(pdf?.pdf_path).toBeNull(); // só aceite gera comprovante
+    expect(pdf?.pdf_path).toBeNull();
   });
 
   it("resposta inválida é recusada por inteiro: o código NÃO fica consumido", async () => {
@@ -403,7 +399,6 @@ describe("registrar_resposta", () => {
     expect(p?.status).toBe("enviada");
     expect((await eventos(e.propostaId)).map((x) => x.tipo)).toEqual(["otp_enviado"]);
 
-    // E dá para concluir em seguida, com os dados certos
     expect((await responder(e.propostaId, certo)).data?.r_status).toBe("ok");
   });
 

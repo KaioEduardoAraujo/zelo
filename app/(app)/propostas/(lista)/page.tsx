@@ -38,7 +38,6 @@ export default async function PropostasPage(props: PageProps<"/propostas">) {
     listarPropostas(filtros),
     temPropostas(),
   ]);
-  // Página além do fim (ex.: filtro mudou): volta para a última que existe.
   if (filtros.pagina > paginas)
     redirect(urlListagem("/propostas", { ...filtros, pagina: paginas }));
 

@@ -4,11 +4,7 @@ import { hmacHex } from "@/lib/crypto/hash";
 import { serverEnv } from "@/lib/env.server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-/**
- * Limite de taxa por IP para as ações públicas (D17), no Postgres.
- * A chave guarda o HMAC do IP, nunca o IP (LGPD). Sem IP conhecido (fora da Vercel), vale só o
- * limite por proposta que o próprio banco aplica aos códigos (3 por hora).
- */
+// Guarda o HMAC do IP, nunca o IP.
 export async function dentroDoLimite(
   acao: "abrir" | "codigo" | "responder" | "comprovante" | "verificar",
   ip: string | undefined,
@@ -22,6 +18,6 @@ export async function dentroDoLimite(
     p_limite: limite,
     p_janela_segundos: janelaSegundos,
   });
-  // Se o limitador falhar, NÃO bloqueia o cliente: as regras do banco continuam valendo.
+  // Se o limitador falhar, não bloqueia: as regras do banco continuam valendo.
   return error ? true : data !== false;
 }

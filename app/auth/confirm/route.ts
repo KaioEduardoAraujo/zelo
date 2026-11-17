@@ -5,13 +5,7 @@ import { z } from "zod";
 import { safeNextPath } from "@/lib/auth/routes";
 import { createClient } from "@/lib/supabase/server";
 
-/*
- * Destino dos links enviados por e-mail (recuperar senha, confirmar cadastro).
- *
- * Usamos o fluxo com token_hash (templates em supabase/templates/) em vez do fluxo PKCE
- * padrão: o PKCE só funciona se o link for aberto no MESMO navegador que pediu a
- * recuperação. Com token_hash, a pessoa pode pedir no computador e abrir no celular.
- */
+// token_hash em vez de PKCE: o PKCE só funciona no mesmo navegador que pediu o link.
 const querySchema = z.object({
   token_hash: z.string().min(10).max(512),
   type: z.enum(["recovery", "signup", "email", "email_change", "invite", "magiclink"]),

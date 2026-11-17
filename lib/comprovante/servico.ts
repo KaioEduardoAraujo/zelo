@@ -9,15 +9,8 @@ import { renderizarComprovante, type ImagensPdf } from "@/lib/pdf/comprovante";
 import { createServiceClient } from "@/lib/supabase/service";
 import { caminhoFotoValido } from "@/lib/validation/entrega";
 
-/*
- * Ciclo do comprovante: gerar o PDF, guardar no bucket privado `comprovantes` e mandar por
- * e-mail aos dois lados. Tudo com a service_role, sempre no servidor.
- *
- * O PDF é gerado UMA vez e guardado no caminho que o próprio aceite já traz (`pdf_path`, D21).
- * `garantirComprovante` é idempotente: se o arquivo já existe, devolve o guardado; se não existe
- * (o download chegou antes da geração em segundo plano, ou ela falhou), gera agora. Assim o
- * cliente que toca em "Baixar comprovante" logo depois do aceite sempre recebe o arquivo.
- */
+// Idempotente: se o PDF ainda não foi guardado (download antes da geração em segundo plano),
+// gera na hora.
 
 const BUCKET = "comprovantes";
 
@@ -32,11 +25,7 @@ async function baixarGuardado(caminho: string): Promise<Buffer | null> {
   return data ? Buffer.from(await data.arrayBuffer()) : null;
 }
 
-/**
- * Baixa as fotos de uma entrega para embutir no PDF. Só entram JPEG e PNG (o react-pdf não desenha
- * WebP; essas aparecem só na lista, com o hash) e só se o SHA-256 dos bytes bater com o que foi
- * selado no envio: o PDF nunca mostra uma imagem diferente da que o hash do documento cobre.
- */
+// Só embute fotos cujo SHA-256 bate com o selado no envio.
 async function carregarImagens(dados: DadosComprovante): Promise<ImagensPdf> {
   const imagens: ImagensPdf = {};
   const bucket = createServiceClient().storage.from("entregas");
@@ -52,7 +41,6 @@ async function carregarImagens(dados: DadosComprovante): Promise<ImagensPdf> {
   return imagens;
 }
 
-/** Devolve o PDF do aceite (gerando e guardando, se ainda não existir). Só aceites com pdf_path. */
 export async function garantirComprovante(aceiteId: string): Promise<Garantido | null> {
   const dados = await carregarDadosComprovante(aceiteId);
   const caminho = dados?.aceite.pdfPath;
@@ -68,8 +56,7 @@ export async function garantirComprovante(aceiteId: string): Promise<Garantido |
   });
 
   const svc = createServiceClient();
-  // upsert: false → o arquivo nunca é sobrescrito. Se duas gerações correrem ao mesmo tempo, a
-  // segunda falha aqui e passa a usar o arquivo que a primeira guardou (o mesmo para todos).
+  // upsert: false: duas gerações ao mesmo tempo terminam usando o mesmo arquivo.
   const { error } = await svc.storage
     .from(BUCKET)
     .upload(caminho, pdf, { contentType: "application/pdf", upsert: false });
@@ -90,7 +77,6 @@ export async function garantirComprovante(aceiteId: string): Promise<Garantido |
   return { pdf, dados, caminho };
 }
 
-/** URL assinada de curta duração (60 s) para baixar o PDF guardado (regra 7). null se não existe. */
 async function urlAssinada(caminho: string, codigo: string): Promise<string | null> {
   const { data, error } = await createServiceClient()
     .storage.from(BUCKET)
@@ -98,10 +84,6 @@ async function urlAssinada(caminho: string, codigo: string): Promise<string | nu
   return error ? null : (data?.signedUrl ?? null);
 }
 
-/**
- * Link de download do comprovante. Quem chama JÁ conferiu a permissão (token do link ou sessão +
- * RLS). Se o PDF ainda não foi guardado, gera agora e então assina.
- */
 export async function linkDoComprovante(aceite: {
   id: string;
   pdfPath: string | null;
@@ -114,11 +96,7 @@ export async function linkDoComprovante(aceite: {
   return garantido ? urlAssinada(garantido.caminho, aceite.codigo) : null;
 }
 
-/**
- * Executado em segundo plano logo depois do aceite (`after()`): o cliente já recebeu a resposta
- * e o aceite já vale. Falha aqui não desfaz nada; o download gera o PDF de novo se preciso.
- * Sem dados pessoais no log: só o id do aceite.
- */
+// Log só com o id do aceite (sem dados pessoais).
 export async function processarAceite(aceiteId: string): Promise<void> {
   let garantido: Garantido | null;
   try {
@@ -165,7 +143,7 @@ export async function processarAceite(aceiteId: string): Promise<void> {
   }
 
   if (enviados.length > 0) {
-    // Só o PAPEL de quem recebeu, nunca o endereço (LGPD).
+    // Só o papel de quem recebeu, nunca o endereço.
     await createServiceClient()
       .from("auditoria_eventos")
       .insert({

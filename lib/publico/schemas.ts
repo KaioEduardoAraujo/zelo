@@ -2,19 +2,12 @@ import { z } from "zod";
 
 import { isValidCpf } from "@/lib/validation/cpf";
 
-/*
- * Formulário do cliente na página pública. Validado no navegador (resposta rápida) e de novo
- * no servidor (a entrada nunca é confiável).
- *
- * As regras de cada campo ficam TODAS no superRefine, de propósito: no Zod, se um campo da base
- * falha, os refinamentos não rodam, e a pessoa corrigiria um erro só para descobrir o próximo.
- * Assim, nome, CPF, comentário e consentimento são apontados juntos.
- */
+// Tudo no superRefine: se a base falha o Zod pula os refinamentos, e os erros apareceriam
+// um de cada vez.
 export const respostaSchema = z
   .object({
     acao: z.enum(["aceito", "recusado", "ajuste"]),
     nome: z.string().trim(),
-    /** Só dígitos. Obrigatório apenas no aceite. */
     cpf: z
       .string()
       .transform((v) => v.replace(/\D/g, ""))

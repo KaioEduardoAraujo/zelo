@@ -5,12 +5,7 @@ import { origemDaRequisicao } from "@/lib/http/origem";
 import { dentroDoLimite } from "@/lib/publico/limites";
 import { carregarPropostaPublica } from "@/lib/publico/queries";
 
-/*
- * Download do comprovante pelo CLIENTE (sem conta). O token do link é conferido de novo aqui,
- * no servidor; só uma proposta ACEITA tem comprovante. A resposta redireciona para uma URL
- * assinada que vale 60 s (o bucket é privado). Os cabeçalhos de /p/* (next.config.ts) valem
- * aqui também: sem referrer, sem cache, sem indexação.
- */
+// O token é conferido de novo aqui. Redireciona para uma URL assinada de 60 s (bucket privado).
 
 const naoEncontrado = () =>
   new NextResponse("Comprovante não encontrado.", {

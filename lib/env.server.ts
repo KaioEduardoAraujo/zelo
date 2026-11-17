@@ -2,20 +2,12 @@ import "server-only";
 
 import { z } from "zod";
 
-/*
- * Segredos do servidor. O import "server-only" acima faz o build quebrar se este
- * arquivo for parar num componente de cliente — é a nossa garantia de que a chave
- * service_role nunca chega ao navegador (regra inegociável nº 4).
- */
+// server-only: o build quebra se este arquivo for importado no navegador.
 const serverSchema = z
   .object({
-    // Chave com privilégio total (ignora RLS). Aceita a "service_role" (legada)
-    // ou a nova "secret key" (sb_secret_...) do Supabase.
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
 
-    // Segredo do HMAC-SHA256 usado para guardar o hash do OTP e do token do link.
-    // Um OTP tem só 1 milhão de combinações: sem esse segredo, quem vazasse o banco
-    // descobriria o código por força bruta em segundos.
+    // Com este segredo, quem vazar o banco não consegue testar os 10⁶ códigos possíveis.
     HASH_PEPPER: z.string().min(32),
 
     EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("resend"),

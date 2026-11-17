@@ -1,9 +1,7 @@
-/** Retrato das partes gravado no documento no momento do envio (decisão D24). */
 export type SnapshotDocumento = {
   titulo: string;
   prestador: { nome: string; empresa: string | null };
   cliente: { nome: string; email: string; telefone: string | null };
-  /** Só em aditivo e entrega: a proposta aceita a que o documento se refere (selada no hash). */
   referencia?: { proposta_id: string; titulo: string; hash_documento: string };
 };
 
@@ -12,7 +10,6 @@ const ehObjeto = (v: unknown): v is Record<string, unknown> =>
 const texto = (v: unknown) => (typeof v === "string" ? v : "");
 const textoOuNulo = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 
-/** Extrai o retrato das partes do jsonb bruto de uma versão enviada (null se não houver). */
 export function lerSnapshot(bruto: unknown): SnapshotDocumento | null {
   if (!ehObjeto(bruto) || !ehObjeto(bruto.prestador) || !ehObjeto(bruto.cliente)) return null;
   const ref = ehObjeto(bruto.referencia) ? bruto.referencia : null;

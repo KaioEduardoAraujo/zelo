@@ -14,10 +14,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-/**
- * Confirmação de ação destrutiva (DESIGN.md 8): explica o efeito antes de agir.
- * `onConfirm` costuma ser uma Server Action.
- */
 export function ConfirmDialog({
   trigger,
   title,

@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Mesmo padrão do Input (DESIGN.md 6): fonte de 16px, foco com anel teal, erro em vermelho.
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea

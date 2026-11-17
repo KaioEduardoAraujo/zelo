@@ -1,52 +1,33 @@
 import type { Enums } from "@/lib/supabase/database.types";
 
-/*
- * Aditivo e aceite de entrega REUTILIZAM o fluxo da proposta (decisão D4): mesmas tabelas, mesmo
- * envio, mesma página do cliente, mesmo OTP, mesmo PDF. O que muda é o TEXTO ("aceitar a proposta"
- * vs. "confirmar a entrega"). Fica tudo aqui, num só lugar, para não espalhar `if (tipo === ...)`
- * pelas telas e e-mails. Os textos de "proposta" são exatamente os que já existiam.
- */
+// Textos que mudam entre proposta, aditivo e entrega.
 export type TipoDocumento = Enums<"proposta_tipo">;
 export type AcaoResposta = "aceito" | "recusado" | "ajuste";
 
 export type TextosTipo = {
-  /** "proposta", "aditivo", "entrega" (minúsculo, sem artigo). */
   nome: string;
-  /** "Proposta", "Aditivo", "Entrega" (rótulos e selos). */
   rotulo: string;
-  /** "a proposta", "o aditivo", "a entrega". */
   artigo: string;
-  /** "esta proposta", "este aditivo", "esta entrega". */
   este: string;
-  /** "da proposta", "do aditivo", "da entrega". */
   de: string;
-  /** Frase que completa "Seu código para ___" (e-mail do código). */
   paraCodigo: Record<AcaoResposta, string>;
-  /** Botão principal da barra fixa e título da folha. */
   principal: string;
   recusar: string;
   ajuste: string;
-  /** Título da folha de cada ação. */
   folha: Record<AcaoResposta, string>;
   confirmar: Record<AcaoResposta, string>;
   registrado: Record<AcaoResposta, string>;
-  /** "Proposta enviada via Zelo" no cabeçalho da página do cliente. */
   enviadaVia: string;
-  /** Verbo no e-mail e nas frases do comprovante. */
   acaoPositiva: { cliente: string; prestador: string };
   assuntoCliente: string;
   assuntoPrestador: string;
-  /** Texto de aceite no detalhe e na página do cliente: "Aceita por X". */
   aceitaPor: string;
-  /** Concordância: "aceita", "aceito", "confirmada" e "atualizada", "atualizado", "atualizada". */
   aceitaAdj: string;
   atualizadaAdj: string;
-  /** Título do estado vazio de listas, tela "criada" e título da página de edição. */
   criada: string;
   emEdicao: string;
   enviarBotao: string;
   confirmarEnvioTitulo: string;
-  /** Título do comprovante em PDF. */
   tituloPdf: string;
 };
 

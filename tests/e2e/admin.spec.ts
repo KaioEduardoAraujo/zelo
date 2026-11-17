@@ -2,18 +2,13 @@ import { expect, test } from "@playwright/test";
 
 import { criarConta, entrar, semRolagemHorizontal, semearProposta, service } from "./support";
 
-/*
- * Fase 9: painel do administrador. Suspender bloqueia o login (no app E no Supabase Auth) sem
- * afetar links já enviados; o admin vê só contagens; templates globais têm gestão própria.
- */
-
 test.describe("prestadores", () => {
   test("lista com contagens, filtra, suspende e reativa (e o login acompanha)", async ({
     page,
     browser,
     isMobile,
   }) => {
-    test.skip(isMobile, "área do admin é desktop (DESIGN.md); layout em 375px testado abaixo");
+    test.skip(isMobile, "área do admin é desktop; 375px testado abaixo");
     test.setTimeout(150_000);
     const admin = await criarConta({ nome: "Admin Zelo", admin: true });
     const nome = `Zuleica ${Date.now()}`; // único: o banco local guarda contas de execuções anteriores
@@ -24,7 +19,6 @@ test.describe("prestadores", () => {
     await entrar(page, admin.email, admin.password);
     await expect(page).toHaveURL(/\/admin$/);
 
-    // Contagens por prestador: 2 propostas, 1 aceite
     await page.getByLabel("Buscar por nome, empresa ou e-mail").fill(nome);
     await page.getByRole("button", { name: "Filtrar" }).click();
     const linha = page.getByRole("row", { name: new RegExp(nome) });
@@ -32,10 +26,8 @@ test.describe("prestadores", () => {
     await expect(linha.getByRole("cell").nth(2)).toHaveText("2");
     await expect(linha.getByRole("cell").nth(3)).toHaveText("1");
     await expect(linha.getByText("✓ Ativa")).toBeVisible();
-    // O admin não é listado como prestador
     await expect(page.getByRole("row", { name: /Admin Zelo/ })).toHaveCount(0);
 
-    // Suspender, com confirmação que explica o efeito
     await linha.getByRole("button", { name: /Suspender/ }).click();
     const dialogo = page.getByRole("dialog");
     await expect(dialogo.getByText(/links que já enviou continuam valendo/)).toBeVisible();
@@ -60,7 +52,6 @@ test.describe("prestadores", () => {
     const { data: u } = await service.auth.admin.getUserById(alvo.id);
     expect(u.user?.banned_until).toBeTruthy();
 
-    // O prestador não entra, e recebe a explicação
     const ctx = await browser.newContext();
     const p = await ctx.newPage();
     await entrar(p, alvo.email, alvo.password);
@@ -72,7 +63,6 @@ test.describe("prestadores", () => {
     await expect(p.getByText("Aceita por", { exact: false })).toBeVisible();
     await ctx.close();
 
-    // Reativar
     await page
       .getByRole("row", { name: new RegExp(nome) })
       .getByRole("button", { name: /Reativar/ })
@@ -127,7 +117,6 @@ test.describe("templates globais", () => {
     await expect(page).toHaveURL(/\/admin\/templates\/[0-9a-f-]{36}\/editar$/);
     const id = page.url().match(/templates\/([0-9a-f-]{36})\//)![1];
 
-    // Vazio não ativa
     await page.goto("/admin/templates");
     await page
       .getByRole("article")
@@ -137,7 +126,6 @@ test.describe("templates globais", () => {
       .click();
     await expect(page.getByText(/Preencha o modelo por completo antes de ativá-lo/)).toBeVisible();
 
-    // Preenche (pelo banco, com o mesmo formato estrito) e salva o título pelo editor
     await service
       .from("templates")
       .update({
@@ -170,7 +158,6 @@ test.describe("templates globais", () => {
       page.getByRole("article").filter({ hasText: titulo }).getByText("✓ Ativo"),
     ).toBeVisible();
 
-    // Um prestador passa a ver o modelo, só para leitura
     const prest = await criarConta();
     const ctx = await browser.newContext();
     const p = await ctx.newPage();
@@ -182,7 +169,6 @@ test.describe("templates globais", () => {
       0,
     );
 
-    // Desativa: some para o prestador
     await page
       .getByRole("article")
       .filter({ hasText: titulo })
@@ -192,7 +178,6 @@ test.describe("templates globais", () => {
     await expect(p.getByRole("heading", { name: titulo })).toHaveCount(0);
     await ctx.close();
 
-    // Exclui
     await page
       .getByRole("article")
       .filter({ hasText: titulo })

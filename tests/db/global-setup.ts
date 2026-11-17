@@ -2,11 +2,7 @@ import { execSync } from "node:child_process";
 
 import type { TestProject } from "vitest/node";
 
-/*
- * Lê URL e chaves do Supabase local (`supabase status`) e entrega aos testes via `inject`.
- * São as chaves de demonstração do ambiente local, não segredos de produção.
- * Recusa rodar contra qualquer coisa que não seja 127.0.0.1/localhost.
- */
+// Só roda contra o Supabase local.
 export default function setup(project: TestProject) {
   let raw: string;
   try {
