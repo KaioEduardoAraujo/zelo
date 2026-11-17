@@ -45,8 +45,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 6 | Página pública do cliente com aceite por código (OTP) | ✅ Concluída |
 | 7 | PDF comprovante, e-mail e verificação de integridade | ✅ Concluída |
 | 8 | Aditivo e aceite de entrega (com fotos) | ✅ Concluída |
-| 9 | Painel do administrador | ⏳ Próxima |
-| 10 | Qualidade, CI, deploy na Vercel | Planejada |
+| 9 | Painel do administrador | ✅ Concluída |
+| 10 | Qualidade, CI, deploy na Vercel | ⏳ Próxima |
 
 ## Stack
 

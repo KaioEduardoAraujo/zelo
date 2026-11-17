@@ -35,7 +35,13 @@ const text = (formData: FormData, key: string) => {
   return typeof v === "string" ? v : "";
 };
 
+const MENSAGEM_SUSPENSA =
+  "Sua conta está suspensa. Fale com o administrador do Zelo para reativá-la. Os links de propostas já enviados continuam funcionando para os seus clientes.";
+
 function authErrorMessage(code: string | undefined): string {
+  // Suspender também bane o usuário no Supabase Auth (Fase 9): o login falha com este código,
+  // só depois de a senha estar certa. A explicação continua a mesma de antes.
+  if (code === "user_banned") return MENSAGEM_SUSPENSA;
   if (code === "email_not_confirmed")
     return "Confirme seu e-mail pelo link que enviamos antes de entrar.";
   if (code?.startsWith("over_"))
@@ -68,11 +74,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   // Conta suspensa: encerra a sessão que acabou de abrir e explica o motivo.
   if (!profile?.ativo) {
     await supabase.auth.signOut();
-    return {
-      message:
-        "Sua conta está suspensa. Fale com o administrador do Zelo para reativá-la. Os links de propostas já enviados continuam funcionando para os seus clientes.",
-      values,
-    };
+    return { message: MENSAGEM_SUSPENSA, values };
   }
 
   redirect(safeNextPath(parsed.data.next, homeFor(profile)));

@@ -172,7 +172,7 @@ Mais simples e sempre correto.
 - "Aceite de entrega": checklist + até N fotos (bucket `entregas`, compressão no navegador,
   limite de tamanho), mesmo fluxo de envio/aceite/PDF.
 
-## Fase 9 — Admin
+## Fase 9 — Admin ✅
 
 - Suspender também aplica `ban_duration` no Supabase Auth (a sessão para de renovar) e reativar remove o ban.
 - `(admin)/admin`: tabela de prestadores (nome, empresa, e-mail, propostas, aceites, status),

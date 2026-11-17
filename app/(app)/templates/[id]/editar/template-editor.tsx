@@ -15,13 +15,22 @@ import { ErrosProvider, useErros } from "@/components/zelo/proposal/erros-contex
 import { EscopoFields, ValoresFields, type MudarConteudo } from "@/components/zelo/proposal/fields";
 import { NICHO_ORDER, NICHOS, type Nicho } from "@/lib/nichos";
 import { validarModelo } from "@/lib/proposals/draft";
+import { salvarModeloGlobal } from "@/lib/admin/actions";
 import { salvarModelo } from "@/lib/templates/actions";
 import { totalCentavos, type ConteudoRascunho } from "@/lib/validation/proposta";
 
-type Props = { id: string; titulo: string; nicho: Nicho; conteudo: ConteudoRascunho };
+type Props = {
+  id: string;
+  titulo: string;
+  nicho: Nicho;
+  conteudo: ConteudoRascunho;
+  /** Administrador editando um modelo GLOBAL (volta para /admin/templates). */
+  admin?: boolean;
+};
 
 /** Editor de um modelo próprio: mesmos campos do assistente, numa página só, salvo no botão. */
 export function TemplateEditor(props: Props) {
+  const voltar = props.admin ? "/admin/templates" : "/templates";
   const router = useRouter();
   const [titulo, setTitulo] = useState(props.titulo);
   const [nicho, setNicho] = useState<Nicho>(props.nicho);
@@ -53,10 +62,15 @@ export function TemplateEditor(props: Props) {
       return;
     }
     iniciar(async () => {
-      const r = await salvarModelo({ id: props.id, titulo, nicho, conteudo: limpo });
+      const r = await (props.admin ? salvarModeloGlobal : salvarModelo)({
+        id: props.id,
+        titulo,
+        nicho,
+        conteudo: limpo,
+      });
       if (r.ok) {
         toast.success("Modelo salvo.");
-        router.push("/templates");
+        router.push(voltar);
       } else {
         setErrosServidor(r.errors ?? {});
         toast.error(r.message ?? "Não conseguimos salvar agora.");
@@ -76,7 +90,7 @@ export function TemplateEditor(props: Props) {
       >
         <div className="flex flex-col gap-2">
           <Link
-            href="/templates"
+            href={voltar}
             className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-[var(--radius-control)] text-support font-semibold text-navy-700 hover:text-navy-950"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -103,7 +117,7 @@ export function TemplateEditor(props: Props) {
 
         <div className="sticky bottom-0 z-20 -mx-4 flex gap-3 border-t border-line bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:-mx-8 md:px-8 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
           <Button asChild variant="secondary" className="flex-1 sm:flex-none">
-            <Link href="/templates">Cancelar</Link>
+            <Link href={voltar}>Cancelar</Link>
           </Button>
           <Button type="submit" disabled={salvando} className="flex-[2] sm:min-w-44 sm:flex-none">
             {salvando ? "Salvando…" : "Salvar modelo"}

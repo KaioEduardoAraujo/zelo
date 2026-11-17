@@ -205,6 +205,9 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D81 | URLs assinadas das fotos (1 h; `lib/entregas/urls.ts`) só são geradas para caminhos da pasta **deste prestador e desta entrega**; na página do cliente isso vale com a service_role | Um caminho forjado no jsonb não pode expor o arquivo de outra pessoa |
 | D82 | PDF da entrega: resumo, checklist e fotos **embutidas** (só JPEG/PNG cujo SHA-256 bate com o selo; WebP só aparece na lista, com o hash), cada foto com o seu SHA-256. Bytes das imagens ficam fora de `dados` (passam por `imagens`) porque `dados` é sanitizado | O PDF nunca mostra imagem diferente da coberta pelo hash |
 | D83 | Nova versão de entrega copia o conteúdo **sem o selo** das fotos (`semSelo`); o envio recalcula tudo. Foto removida do rascunho **permanece** no bucket (sem DELETE para o prestador, e pode estar citada por uma versão enviada) — limitação conhecida, a registrar no README (Fase 10) | Prova não some; limpeza de órfãs fica para depois |
+| D84 | Suspender/reativar (`lib/admin/actions.ts`): 1) `profiles.ativo` pelo cliente do **admin** (trigger: só `ativo` de outros); 2) `auth.admin.updateUserById(ban_duration)` com a service_role (`876000h` ou `none`). Se o Auth falhar, o passo 1 é desfeito. Login de banido (`user_banned`) mostra a mesma mensagem de conta suspensa. Admin não suspende a si mesmo nem outro admin; links já enviados continuam valendo | Bloqueio no app, no banco e no Auth (D28) |
+| D85 | `/admin`: totais e tabela vêm de `admin_resumo_prestadores()` (única fonte; o admin não lê propostas nem aceites); busca e filtro de situação em memória no servidor (poucas contas) | O admin nunca altera nem lê o conteúdo dos aceites |
+| D86 | Templates globais em `/admin/templates` (criar, editar, ativar/desativar, excluir): reaproveitam o `TemplateEditor` (`admin`); modelo novo nasce **inativo** e só ativa se estiver completo (schema estrito). Propostas criadas de um modelo guardam cópia: excluir não as afeta | Prestador nunca começa de um modelo pela metade |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -217,6 +220,8 @@ app/                      rotas: (auth)/ login, cadastro, esqueci-senha, redefin
 components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
 components/zelo/          componentes da marca: Logo, StatusBadge, AcceptanceStamp, ProposalCard, AuditTimeline,
                           EmptyState, ConfirmDialog, PageHeader, FormField, masked-inputs (CPF, telefone, dinheiro)
+lib/admin/               queries.ts (prestadores, totais, templates globais), actions.ts (suspender/reativar, modelos globais)
+app/(admin)/admin/        prestadores e templates globais
 components/zelo/shell/    AppShell + nav.ts (itens, item ativo, título da página, modo foco)
 components/zelo/proposal/ assistente (wizard, stepper, fields, erros-context, save-indicator), ProposalDocument,
                           LinkEnvio ("Proposta criada") e GerarNovoLink
