@@ -45,13 +45,13 @@ documento, o que dá ao prestador e ao cliente uma prova do que foi combinado.
 | Camada | Tecnologia |
 |---|---|
 | Aplicação | Next.js 16 (App Router), React 19, TypeScript |
-| Interface | Tailwind CSS v4, shadcn/ui (Radix) com tema próprio, lucide-react, Manrope e JetBrains Mono |
+| Interface | Tailwind CSS v4, shadcn/ui (Radix) |
 | Dados e autenticação | Supabase: PostgreSQL, Row Level Security, Auth e Storage |
 | Validação | Zod |
 | E-mail | Resend, com alternativa por SMTP (Gmail via nodemailer) |
 | PDF | @react-pdf/renderer, com Manrope e JetBrains Mono embutidas |
 | Testes | Vitest (unitários e banco), Playwright (navegador) e axe-core (acessibilidade) |
-| Hospedagem | Vercel (plano Hobby) e GitHub Actions |
+| Hospedagem | Vercel |
 
 ## Segurança e integridade
 
