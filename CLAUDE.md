@@ -208,6 +208,7 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D84 | Suspender/reativar (`lib/admin/actions.ts`): 1) `profiles.ativo` pelo cliente do **admin** (trigger: só `ativo` de outros); 2) `auth.admin.updateUserById(ban_duration)` com a service_role (`876000h` ou `none`). Se o Auth falhar, o passo 1 é desfeito. Login de banido (`user_banned`) mostra a mesma mensagem de conta suspensa. Admin não suspende a si mesmo nem outro admin; links já enviados continuam valendo | Bloqueio no app, no banco e no Auth (D28) |
 | D85 | `/admin`: totais e tabela vêm de `admin_resumo_prestadores()` (única fonte; o admin não lê propostas nem aceites); busca e filtro de situação em memória no servidor (poucas contas) | O admin nunca altera nem lê o conteúdo dos aceites |
 | D86 | Templates globais em `/admin/templates` (criar, editar, ativar/desativar, excluir): reaproveitam o `TemplateEditor` (`admin`); modelo novo nasce **inativo** e só ativa se estiver completo (schema estrito). Propostas criadas de um modelo guardam cópia: excluir não as afeta | Prestador nunca começa de um modelo pela metade |
+| D87 | Fase 10: CI em 2 jobs (`.github/workflows/ci.yml`: lint/tipos/unit/build com env fictício; Supabase **local no runner** + testes de banco e Playwright Chromium, `.env.local` gerado por `scripts/ci/env-local.mjs`). Keep-alive a cada 3 dias chama `public.ping()` (migration 0011, só devolve `'ok'`) com a chave pública (secrets `SUPABASE_URL`/`SUPABASE_PUBLISHABLE_KEY`). Acessibilidade com axe (WCAG 2.1 AA) nos e2e; token `success` escurecido para 5:1; CSP parcial (`frame-ancestors`, `base-uri`, `object-src`) + `Permissions-Policy`; argumentos de `.bind()` validados com Zod; `shadcn` (CLI) virou devDependency. Admin da nuvem por `npm run db:seed-admin:nuvem` (`.env.nuvem`, fora do Git); guia em `docs/DEPLOY.md` | Sem segredo de produção na CI; prova de qualidade reproduzível |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -297,6 +298,7 @@ npm run db:reset      # recria o banco local: migrations + supabase/seed.sql
 npm run db:types      # regenera lib/supabase/database.types.ts
 npm run db:advisors   # advisors de segurança/desempenho do Supabase
 npm run db:seed-admin # cria/promove o admin (SEED_ADMIN_* do .env.local)
+npm run db:seed-admin:nuvem # idem na nuvem, lendo .env.nuvem (fora do Git; ver docs/DEPLOY.md)
 npm run db:stop       # desliga o Supabase local
 ```
 

@@ -35,7 +35,12 @@ export async function alterarSituacaoPrestador(
   ativar: boolean,
 ): Promise<void> {
   const admin = await requireAdmin();
-  if (!idSchema.safeParse(prestadorId).success || prestadorId === admin.id) {
+  // Argumentos de `.bind()` chegam do navegador sem criptografia: valida o tipo também.
+  if (
+    !idSchema.safeParse(prestadorId).success ||
+    !z.boolean().safeParse(ativar).success ||
+    prestadorId === admin.id
+  ) {
     redirect("/admin?erro=situacao");
   }
 
@@ -150,7 +155,9 @@ export async function criarModeloGlobal(): Promise<void> {
 
 export async function alternarModeloGlobal(id: string, ativo: boolean): Promise<void> {
   await requireAdmin();
-  if (!idSchema.safeParse(id).success) redirect("/admin/templates");
+  if (!idSchema.safeParse(id).success || !z.boolean().safeParse(ativo).success) {
+    redirect("/admin/templates");
+  }
   const supabase = await createClient();
   const { data: atual } = await supabase
     .from("templates")

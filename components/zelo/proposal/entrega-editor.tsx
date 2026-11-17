@@ -530,7 +530,11 @@ export function EntregaEditor(props: Props) {
           </form>
 
           <aside aria-label="Pré-visualização do documento" className="hidden xl:block">
-            <div className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)]">
+            {/* tabIndex: área com rolagem própria precisa ser alcançável pelo teclado (WCAG 2.1.1). */}
+            <div
+              tabIndex={0}
+              className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)] focus-visible:outline-2"
+            >
               <p className="mb-2 text-support font-semibold text-slate-600">Como o cliente verá</p>
               {preview}
             </div>

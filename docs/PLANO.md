@@ -178,7 +178,7 @@ Mais simples e sempre correto.
 - `(admin)/admin`: tabela de prestadores (nome, empresa, e-mail, propostas, aceites, status),
   ativar/suspender com confirmação, contadores gerais, gestão de templates globais.
 
-## Fase 10 — Qualidade e entrega
+## Fase 10 — Qualidade e entrega ✅ (deploy: docs/DEPLOY.md)
 
 - Testes dos fluxos críticos (+ Playwright no fluxo principal se der tempo), checklist de
   segurança da seção 4, acessibilidade (teclado, contraste, `aria-live`), Lighthouse mobile ≥ 90

@@ -29,6 +29,19 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // O app não usa câmera (a foto da entrega vem pelo seletor de arquivos), microfone
+          // nem localização: o navegador nem oferece essas permissões a scripts do site.
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+          },
+          // CSP parcial e segura: ninguém embute o site (frame-ancestors, reforça o X-Frame-Options),
+          // <base> não pode desviar links e plugins (<object>) ficam proibidos. Uma CSP de scripts
+          // com nonce exigiria renderização dinâmica em todo o site; fica como evolução (README).
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+          },
         ],
       },
       {

@@ -498,6 +498,7 @@ export type Database = {
         }[];
       };
       gerar_codigo_comprovante: { Args: Record<PropertyKey, never>; Returns: string };
+      ping: { Args: Record<PropertyKey, never>; Returns: string };
       regenerar_link: {
         Args: {
           p_ip?: unknown;

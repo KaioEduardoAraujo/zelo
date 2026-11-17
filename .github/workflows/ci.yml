@@ -1,0 +1,94 @@
+# CI do Zelo: a cada push e pull request na main.
+#  1. qualidade: lint, tipos, testes unitários e build de produção (rápido, sem banco).
+#  2. integracao: sobe o Supabase LOCAL no próprio runner (Docker) e roda os testes de banco
+#     (RLS, triggers, imutabilidade) e os testes de navegador (Playwright, desktop e 375px).
+# Nenhum segredo de produção é usado aqui: o Supabase local tem chaves de demonstração.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualidade:
+    name: Lint, tipos, unitários e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Valores fictícios só para o build compilar (nenhuma chamada é feita a eles).
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_build_placeholder
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_build_placeholder
+      HASH_PEPPER: ci-build-placeholder-not-a-secret-0123456789
+      EMAIL_PROVIDER: smtp
+      EMAIL_FROM: Zelo <nao-responda@zelo.local>
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: "54325"
+      SMTP_USER: ci
+      SMTP_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  integracao:
+    name: Banco (Supabase local) e navegador (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Só os serviços que o app usa: banco, Auth, REST, Storage e Mailpit.
+      - name: Subir o Supabase local
+        run: >
+          npx supabase start
+          -x realtime,studio,edge-runtime,logflare,vector,supavisor,postgres-meta,imgproxy
+
+      - name: Gerar .env.local (chaves locais de demonstração)
+        run: node scripts/ci/env-local.mjs
+
+      - name: Testes de banco (RLS, triggers, imutabilidade)
+        run: npm run test:db
+
+      - name: Instalar o Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Testes de navegador (desktop e 375px)
+        run: npm run test:e2e
+
+      - name: Guardar o relatório dos testes de navegador (se falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
+      - name: Desligar o Supabase local
+        if: always()
+        run: npx supabase stop --no-backup

@@ -395,6 +395,8 @@ test.describe("segurança da página do cliente", () => {
     expect(h["cache-control"]).toContain("no-store");
     expect(h["x-robots-tag"]).toContain("noindex");
     expect(h["x-frame-options"]).toBe("DENY");
+    expect(h["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(h["permissions-policy"]).toContain("camera=()");
   });
 
   test("o HTML não expõe e-mail completo do cliente, ids internos nem o hash do link", async ({

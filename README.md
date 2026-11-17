@@ -27,8 +27,10 @@ dá ao prestador uma prova do que foi combinado.
 3. O cliente lê no celular e aceita, recusa ou pede ajuste, confirmando a identidade com um código
    de 6 dígitos enviado por e-mail.
 4. O sistema gera um PDF comprovante com a trilha de auditoria e envia uma cópia aos dois.
-5. Mudanças durante o serviço viram **aditivos**, e a conclusão vira um **aceite de entrega**,
-   pelo mesmo fluxo.
+5. Mudanças durante o serviço viram **aditivos**, e a conclusão vira um **aceite de entrega**
+   (checklist e fotos), pelo mesmo fluxo.
+6. Qualquer pessoa com o código do comprovante confere a autenticidade em `/verificar`: o sistema
+   recalcula o hash do documento e, se o PDF for informado, compara com o arquivo original.
 
 ## Andamento
 
@@ -46,7 +48,64 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 7 | PDF comprovante, e-mail e verificação de integridade | ✅ Concluída |
 | 8 | Aditivo e aceite de entrega (com fotos) | ✅ Concluída |
 | 9 | Painel do administrador | ✅ Concluída |
-| 10 | Qualidade, CI, deploy na Vercel | ⏳ Próxima |
+| 10 | Qualidade, acessibilidade, CI, keep-alive e deploy na Vercel | ✅ Concluída (deploy: ver [guia](docs/DEPLOY.md)) |
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+  subgraph Navegador
+    P[Prestador<br/>área logada]
+    C[Cliente<br/>link /p/token, sem conta]
+    A[Admin]
+  end
+  subgraph Vercel["Next.js 16 na Vercel"]
+    SC[Server Components<br/>e Server Actions]
+    RH[Rotas de download<br/>e /verificar]
+    PX[proxy.ts<br/>renova sessão]
+  end
+  subgraph Supabase
+    DB[(Postgres<br/>RLS + triggers)]
+    AU[Auth]
+    ST[(Storage privado<br/>comprovantes, entregas)]
+  end
+  EM[E-mail<br/>Resend ou SMTP]
+
+  P -- sessão em cookie --> PX --> SC
+  A --> PX
+  C -- token do link --> SC
+  SC -- chave do usuário: RLS vale --> DB
+  SC -- service_role só no servidor,<br/>depois de validar o token --> DB
+  SC --> AU
+  SC --> ST
+  RH -- URL assinada 60 s --> ST
+  SC -- código OTP e PDF --> EM
+```
+
+- **O banco é a última barreira.** Cada regra importante (quem vê o quê, versão enviada não
+  muda, aceite e trilha append-only, aceite só com o hash certo) está no Postgres, em RLS e
+  triggers. A aplicação valida antes para dar mensagens claras, mas não é a única defesa.
+- **Três camadas de autorização:** `proxy.ts` (redirecionamento otimista e renovação da sessão),
+  a camada de acesso a dados `lib/auth/dal.ts` (papel e conta suspensa, em cada página e ação) e o
+  RLS no banco.
+- **O cliente não tem conta.** Tudo o que ele faz passa pelo servidor: o token do link é validado
+  e só então a `service_role` é usada, sempre em arquivos `server-only`.
+- **Um fluxo, três documentos.** Proposta, aditivo e aceite de entrega usam as mesmas tabelas
+  (`propostas.tipo` + `proposta_pai_id`), o mesmo envio, a mesma página do cliente e o mesmo
+  comprovante; só os textos mudam (`lib/tipos.ts`).
+
+### Ciclo de um documento
+
+1. **Rascunho:** o assistente salva sozinho (autosave com debounce) e o servidor normaliza o
+   conteúdo (total recalculado, valores em centavos).
+2. **Envio:** o servidor relê o rascunho do banco, valida tudo de novo e monta o documento selado
+   (conteúdo + retrato das partes + identidade do registro). Uma função do banco, numa transação,
+   trava a versão, grava o SHA-256 da serialização canônica, troca o token do link e registra o
+   evento.
+3. **Resposta do cliente:** código de 6 dígitos por e-mail; uma função do banco confere o código e
+   grava aceite, status e trilha de uma vez. O aceite repete o hash da versão.
+4. **Comprovante:** depois da resposta (`after()`), o PDF é gerado, guardado no Storage privado e
+   enviado por e-mail aos dois. O download gera o PDF na hora se ainda não existir.
 
 ## Stack
 
@@ -57,8 +116,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | Dados e autenticação | Supabase: PostgreSQL, Row Level Security, Auth e Storage |
 | Validação | Zod |
 | E-mail | Resend, com alternativa por SMTP (Gmail via nodemailer) |
-| PDF | @react-pdf/renderer (Fase 7) |
-| Testes | Vitest (unitários e banco) e Playwright (navegador) |
+| PDF | @react-pdf/renderer, com Manrope e JetBrains Mono embutidas |
+| Testes | Vitest (unitários e banco), Playwright (navegador) e axe-core (acessibilidade) |
 | Hospedagem | Vercel (plano Hobby) e GitHub Actions |
 
 ## Segurança e integridade
@@ -86,7 +145,14 @@ só no código da aplicação:
   registrada pelo navegador de verdade (a prévia de link do WhatsApp não marca "visualizada").
 - **Autorização em três camadas:** o `proxy.ts` redireciona quem não está logado, a camada de acesso
   a dados (`lib/auth/dal.ts`) confere papel e conta suspensa no servidor, e o banco aplica o RLS.
-- **Outros cuidados:** Zod em toda entrada, proteção contra redirecionamento aberto, mensagens de
+- **Fotos da entrega e PDFs em buckets privados:** acesso só por URL assinada de curta duração; o
+  servidor só assina caminhos da pasta do prestador dono do documento. No envio, cada foto é
+  conferida pelos primeiros bytes e o SHA-256 dela entra no documento selado.
+- **Limite de taxa** (no próprio Postgres, com o HMAC do IP, nunca o IP) para abrir o link, pedir
+  código, responder, baixar o comprovante e usar o `/verificar`.
+- **Cabeçalhos de segurança:** `X-Frame-Options`, CSP com `frame-ancestors 'none'`,
+  `Permissions-Policy`, `nosniff`; na página do cliente, `no-referrer`, `no-store` e `noindex`.
+- **Outros cuidados:** Zod em toda entrada (inclusive argumentos de Server Actions), proteção contra redirecionamento aberto, mensagens de
   login que não revelam se o e-mail existe, CPF mascarado na interface e segredos só em variáveis de
   ambiente.
 
@@ -168,38 +234,103 @@ Em produção, as variáveis são configuradas no painel da Vercel.
 | `npm run db:advisors` | Verificações de segurança e desempenho do Supabase |
 | `npm run db:seed-admin` | Cria ou promove o administrador |
 
-## Testes
+## Qualidade
 
-- **Unitários (Vitest):** validações, máscaras, CPF, formatação, redirecionamento seguro.
-- **Banco (Vitest contra o Supabase local):** provam que um prestador não lê nem altera dados de
-  outro e que aceites, auditoria e versões enviadas não podem ser alterados nem por quem tem a chave
-  de serviço. Para conferir que esses testes detectam falhas de verdade, as proteções foram
-  removidas de propósito num teste de mutação, e os testes quebraram como esperado.
-- **Navegador (Playwright):** cadastro, login, logout, recuperação de senha lendo o e-mail no
-  Mailpit, conta suspensa, proteção de rotas por papel e ausência de rolagem horizontal em 375px.
+| Verificação | Resultado |
+|---|---|
+| Testes unitários (Vitest) | 191 testes: validação, hash canônico, OTP, máscaras, textos por tipo, PDF |
+| Testes de banco (Vitest + Supabase local) | 104 testes: RLS entre prestadores, imutabilidade, append-only, envio, resposta do cliente, buckets privados |
+| Testes no navegador (Playwright) | fluxos completos em desktop e em 375px: cadastro e login, assistente, envio, aceite com código, comprovante, aditivo, entrega com fotos, verificação, administração |
+| Acessibilidade (axe-core, WCAG 2.1 AA) | sem violações nas telas principais, em desktop e 375px |
+| Lighthouse mobile em `/p/[token]` | Desempenho 100, Acessibilidade 100, Boas práticas 100 (SEO 63 de propósito: o link é pessoal e tem `noindex`) |
+| Advisors de segurança do Supabase | sem problemas, exceto o aviso aceito na decisão D33 |
+| `npm audit --omit=dev` | 0 vulnerabilidades nas dependências de produção |
+
+Para conferir que os testes de banco detectam falhas de verdade, as proteções foram removidas de
+propósito num teste de mutação, e os testes quebraram como esperado.
+
+### Integração contínua (GitHub Actions)
+
+- [`ci.yml`](.github/workflows/ci.yml), a cada push e pull request: lint, tipos, testes unitários e
+  build; depois sobe o **Supabase local no próprio runner** (Docker) e roda os testes de banco e
+  de navegador. Nenhum segredo de produção é usado.
+- [`keep-alive.yml`](.github/workflows/keep-alive.yml), a cada 3 dias: chama a função `ping()` do
+  banco com a chave pública, para o plano gratuito do Supabase não pausar o projeto. Precisa dos
+  secrets `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` no repositório.
+
+## Deploy
+
+O passo a passo (Vercel, variáveis de ambiente, configuração do Supabase na nuvem, e-mail e
+criação do administrador) está em [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Estrutura
 
 ```
-app/                     rotas: (auth) acesso, (app) prestador, (admin) administração, auth/confirm
+app/                     rotas: (auth) acesso, (app) prestador, (admin) administração,
+                         p/[token] página do cliente, verificar/ verificação pública
 components/ui/           componentes shadcn/ui com o tema da Zelo
-components/zelo/         componentes da marca (selo de aceite, status, trilha de auditoria, shell)
-lib/                     autenticação, clientes Supabase, validação, formatação, máscaras
-supabase/migrations/     esquema do banco versionado (tabelas, RLS, triggers, storage)
+components/zelo/         componentes da marca (selo de aceite, documento, assistente, shell)
+components/publico/      página do cliente (resposta, cabeçalho)
+lib/auth/                sessão, papéis e ações de acesso
+lib/proposals/           rascunho, envio, consultas e ações de propostas, aditivos e entregas
+lib/publico/             página do cliente: token, OTP, consentimento, limite de taxa
+lib/comprovante/, lib/pdf/  dados e geração do PDF
+lib/crypto/              JSON canônico, SHA-256, HMAC, token do link
+lib/email/               interface de e-mail (Resend ou SMTP) e modelos
+supabase/migrations/     esquema do banco versionado (tabelas, RLS, triggers, funções, storage)
 supabase/seed.sql        5 modelos de proposta, um por ramo
 supabase/templates/      e-mails de autenticação em português
 tests/                   unit/, db/ e e2e/
-docs/PLANO.md            plano das fases
+.github/workflows/       CI e keep-alive
+docs/                    plano das fases e guia de deploy
 DESIGN.md                identidade visual e diretrizes de interface
-CLAUDE.md                resumo técnico e registro de decisões
+CLAUDE.md                resumo técnico e registro de decisões (D1 a D87)
 ```
+
+## Decisões principais
+
+O registro completo, com o motivo de cada escolha, está em [`CLAUDE.md`](CLAUDE.md). As que mais
+pesam:
+
+- **Valores em centavos e JSON canônico** para que o hash de um documento seja sempre o mesmo, até
+  depois de passar pelo `jsonb` do Postgres (D14, D52).
+- **O hash cobre o documento enviado inteiro:** conteúdo, retrato das partes (se o prestador mudar
+  de nome depois, a prova continua), id da proposta e número da versão; no aditivo e na entrega,
+  também a referência à proposta original e, na entrega, o SHA-256 de cada foto (D52, D77, D80).
+- **HMAC com segredo (`HASH_PEPPER`)** para o token do link e o código OTP: sem o segredo, quem
+  vazasse o banco não conseguiria testar os 10⁶ códigos possíveis (D9).
+- **Funções do banco para envio e resposta:** tudo ou nada numa transação (D53, D63).
+- **OTP por e-mail e link por `wa.me`:** sem custo; a API oficial do WhatsApp é paga (D1, D2).
+- **A abertura do link é registrada pelo navegador**, não pelo servidor, para a prévia do WhatsApp
+  não marcar a proposta como visualizada (D62).
 
 ## Limitações conhecidas
 
-- Sem domínio próprio verificado, o Resend só entrega e-mails para o dono da conta. Para
-  demonstrações com clientes reais, use o provedor SMTP (Gmail com senha de app).
-- O plano gratuito do Supabase pausa o projeto após cerca de 7 dias sem uso. Um agendamento no
-  GitHub Actions para evitar isso está previsto na Fase 10.
-- O IP gravado na trilha vem do cabeçalho `x-forwarded-for`, que só é confiável hospedado na
-  Vercel. Fora dela, o limite de taxa por IP deixa de valer (o limite por proposta continua).
+- **E-mail:** sem domínio próprio verificado, o Resend só entrega para o dono da conta. Para
+  demonstrações com clientes reais, use o provedor SMTP (Gmail com senha de app, ~500 e-mails/dia).
+- **IP na trilha:** vem do cabeçalho `x-forwarded-for`, confiável só hospedado na Vercel. Fora
+  dela, o limite de taxa por IP deixa de valer (o limite por proposta continua) (D60).
+- **Fotos removidas de um rascunho de entrega continuam no bucket:** o prestador não tem permissão
+  de apagar (foto anexada é prova e pode estar citada numa versão enviada) (D83).
+- **PDF:** só fotos JPEG e PNG são embutidas (WebP aparece listada, com o hash); emoji e alguns
+  símbolos viram "?" no PDF, que usa fontes embutidas (o documento guardado não muda) (D71, D82).
+- **Recusa e pedido de ajuste** não geram e-mail para o prestador; ele vê no painel.
+- **CSP parcial:** sem política de scripts com nonce (exigiria renderização dinâmica em todo o
+  site).
+- **Keep-alive:** o GitHub desativa agendamentos de repositórios sem atividade por 60 dias.
+- **Plano gratuito:** 500 MB de banco e 1 GB de Storage no Supabase; 100 e-mails/dia no Resend.
+- **Dependências de desenvolvimento** (ESLint e a CLI do shadcn) têm avisos moderados no
+  `npm audit`; nenhuma vai para produção.
 - Sem modo escuro e sem contas com vários usuários por empresa no MVP.
+
+## Evolução futura
+
+- Domínio próprio, com e-mail verificado (SPF/DKIM) e notificações ao prestador a cada resposta.
+- Carimbo de tempo de uma autoridade (RFC 3161) ou assinatura com certificado ICP-Brasil no PDF,
+  para reforçar o valor jurídico.
+- Equipes: vários usuários por empresa, com papéis.
+- Envio automático pelo WhatsApp (API oficial) e código por SMS.
+- Cobrança integrada (Pix) a partir da proposta aceita.
+- Limpeza programada das fotos órfãs e CSP completa com nonce.
+- Painel com métricas (taxa de aceite, tempo até a resposta) e exportação dos dados (LGPD:
+  portabilidade e exclusão a pedido do titular).

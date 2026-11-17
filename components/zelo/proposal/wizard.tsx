@@ -399,7 +399,11 @@ export function ProposalWizard({
 
           {!ultima && (
             <aside aria-label="Pré-visualização do documento" className="hidden xl:block">
-              <div className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)]">
+              {/* tabIndex: área com rolagem própria precisa ser alcançável pelo teclado (WCAG 2.1.1). */}
+              <div
+                tabIndex={0}
+                className="sticky top-6 max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[var(--radius-card)] focus-visible:outline-2"
+              >
                 <p className="mb-2 text-support font-semibold text-slate-600">
                   Como o cliente verá
                 </p>
@@ -590,7 +594,8 @@ function EtapaRevisar({
         </div>
       )}
 
-      <dl className="divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface">
+      {/* Lista (e não <dl>): cada linha tem também o botão "Editar", que não cabe num par dt/dd. */}
+      <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line bg-surface">
         {[
           ["Cliente", form.clienteNome || "—", 1 as Etapa],
           ["E-mail", form.clienteEmail || "—", 1 as Etapa],
@@ -600,19 +605,19 @@ function EtapaRevisar({
             1 as Etapa,
           ],
         ].map(([rotulo, valor, etapa]) => (
-          <div key={rotulo as string} className="flex items-center justify-between gap-3 px-4 py-3">
+          <li key={rotulo as string} className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
-              <dt className="text-label text-slate-600">{rotulo as string}</dt>
-              <dd className="text-support break-words text-navy-900">{valor as string}</dd>
+              <p className="text-label text-slate-600">{rotulo as string}</p>
+              <p className="text-support break-words text-navy-900">{valor as string}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => onIr(etapa as Etapa)}>
               <Pencil aria-hidden="true" />
               Editar
               <span className="sr-only"> {rotulo as string}</span>
             </Button>
-          </div>
+          </li>
         ))}
-      </dl>
+      </ul>
 
       {preview}
     </div>
