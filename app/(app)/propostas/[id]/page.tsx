@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { Download, ShieldAlert, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { AcceptanceStamp } from "@/components/zelo/acceptance-stamp";
 import { AuditTimeline } from "@/components/zelo/audit-timeline";
 import { ConfirmDialog } from "@/components/zelo/confirm-dialog";
 import { CopyButton } from "@/components/zelo/copy-button";
@@ -12,7 +13,7 @@ import { GerarNovoLink } from "@/components/zelo/proposal/gerar-novo-link";
 import { ProposalDocument } from "@/components/zelo/proposal/proposal-document";
 import { StatusBadge } from "@/components/zelo/status-badge";
 import { requirePrestador } from "@/lib/auth/dal";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, maskCpf } from "@/lib/format";
 import { maskPhone } from "@/lib/masks";
 import { criarNovaVersao, excluirRascunho } from "@/lib/proposals/actions";
 import { carregarProposta } from "@/lib/proposals/queries";
@@ -181,6 +182,27 @@ export default async function PropostaPage(props: PageProps<"/propostas/[id]">) 
                     guardada, com o seu hash.
                   </p>
                 </form>
+              )}
+
+              {aceita && proposta.aceite && (
+                <div className="flex flex-col gap-3">
+                  <AcceptanceStamp
+                    acceptedAt={formatDateTime(proposta.aceite.criadoEm)}
+                    code={proposta.aceite.codigo}
+                    className="self-start"
+                  />
+                  <p className="text-support text-slate-600">
+                    Aceita por {proposta.aceite.clienteNome}
+                    {proposta.aceite.cpf ? ` (CPF ${maskCpf(proposta.aceite.cpf)})` : ""}.
+                  </p>
+                  {/* Link comum (não <Link>): é uma rota de download, não uma página. */}
+                  <Button asChild>
+                    <a href={`/propostas/${proposta.id}/comprovante`}>
+                      <Download aria-hidden="true" />
+                      Baixar comprovante (PDF)
+                    </a>
+                  </Button>
+                </div>
               )}
 
               {aceita && (

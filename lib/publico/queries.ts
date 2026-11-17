@@ -33,6 +33,9 @@ export type PropostaPublica = {
   enviadaEm: string | null;
   validadeEm: string | null;
   resposta: {
+    /** Só para uso no servidor (download do comprovante). */
+    aceiteId: string;
+    pdfPath: string | null;
     resultado: "aceito" | "recusado" | "ajuste";
     criadoEm: string;
     codigo: string;
@@ -107,7 +110,9 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
   const snapshot = lerSnapshot(v.conteudo);
   const { data: a } = await svc
     .from("aceites")
-    .select("resultado, criado_em, codigo_comprovante, cliente_nome, cliente_cpf, comentario")
+    .select(
+      "id, pdf_path, resultado, criado_em, codigo_comprovante, cliente_nome, cliente_cpf, comentario",
+    )
     .eq("versao_id", v.id)
     .order("criado_em", { ascending: false })
     .limit(1)
@@ -129,6 +134,8 @@ export async function carregarPropostaPublica(token: string): Promise<PropostaPu
     enviadaEm: v.enviada_em,
     resposta: a
       ? {
+          aceiteId: a.id,
+          pdfPath: a.pdf_path,
           resultado: a.resultado,
           criadoEm: a.criado_em,
           codigo: a.codigo_comprovante,

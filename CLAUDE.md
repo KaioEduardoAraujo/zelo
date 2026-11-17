@@ -192,6 +192,11 @@ TRUNCATE bloqueado nas tabelas de prova.
 | D68 | Cabeçalhos: `/p/*` com `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`; todo o site com `X-Frame-Options: DENY` e `nosniff` | O token está na URL: não pode vazar por referrer, ficar em cache nem ser indexado |
 | D69 | Botões que dependem de JavaScript ficam desabilitados até a hidratação (`lib/hooks/use-hidratado.ts`); nos e2e, `esperarAssistentePronto` | Toque antes da hidratação se perdia (celular lento); causava testes intermitentes |
 | D70 | No documento, a seção "Itens" chama-se **"O que está incluso"** (DESIGN.md 7.2.7). A pré-visualização do prestador usa o mesmo componente da página do cliente | O prestador vê exatamente o que o cliente verá |
+| D71 | PDF com `@react-pdf/renderer` (JSX + flexbox; já é pacote externo do Next). Fontes Manrope e JetBrains Mono **embutidas** (`lib/pdf/fonts/`, OFL), incluídas no pacote da Vercel por `outputFileTracingIncludes`. Texto passa por `lib/pdf/texto.ts` (caractere sem desenho na fonte vira equivalente ou "?"; o hash cobre o original guardado, não o PDF) | Helvetica do PDF não desenha tudo; emoji virava lixo |
+| D72 | Geração **depois da resposta** com `after()` em `responderProposta` (só para aceite): PDF → bucket `comprovantes` em `pdf_path` (upload sem sobrescrever) → evento `pdf_gerado` → e-mail com anexo ao cliente e ao prestador → `email_enviado` (metadados só com o **papel**, nunca o endereço). Falhas não desfazem o aceite e são logadas só com o id | O cliente não espera o PDF; aceite já vale |
+| D73 | `garantirComprovante` é **idempotente**: o download (cliente `/p/[token]/comprovante`, prestador `/propostas/[id]/comprovante`) gera o PDF se ainda não existir; corrida resolvida pelo `upsert: false`. Download = redirect 303 para URL assinada de **60 s** com nome `comprovante-ZL-….pdf` | Botão "Baixar" logo após o aceite sempre funciona; o arquivo é um só (e-mail, download e bucket) |
+| D74 | O PDF mostra a trilha **até o aceite** (eventos com `criado_em <= aceite`), CPF e e-mail mascarados, IP e dispositivo resumido, texto de consentimento, hash e o endereço de `/verificar` | Documento estável: eventos posteriores (pdf_gerado) não mudam o que foi provado |
+| D75 | `/verificar`: código (normalizado; aceita minúsculas e sem traços) → recalcula o hash da versão e compara com o da versão e do aceite → "Documento íntegro"/"Não encontrado". Mostra só resultado, data, prestador, versão e hash (**nada do cliente**). PDF opcional: o SHA-256 é calculado **no navegador** e comparado ao do arquivo guardado. Limite 20/10 min por IP | LGPD; o arquivo não sai do aparelho; código de 32⁸ combinações + limite impede varredura |
 | D32 | `sign_in_sign_ups = 300` **só** no `supabase/config.toml` local; nunca rodar `supabase config push` sem revisar | Os testes fazem muitos logins do mesmo IP; produção fica com o padrão |
 
 Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`.
@@ -200,7 +205,7 @@ Decisões **propostas** no plano e ainda não aprovadas ficam em `docs/PLANO.md`
 
 ```
 app/                      rotas: (auth)/ login, cadastro, esqueci-senha, redefinir-senha, conta-suspensa;
-                          (app)/ área do prestador; (admin)/admin; auth/confirm (links de e-mail). Futuro: p/[token]/, verificar/
+                          (app)/ área do prestador; (admin)/admin; auth/confirm (links de e-mail); p/[token]/ (+ comprovante/); verificar/
 components/ui/            shadcn customizado (button.tsx já com o tema da Zelo)
 components/zelo/          componentes da marca: Logo, StatusBadge, AcceptanceStamp, ProposalCard, AuditTimeline,
                           EmptyState, ConfirmDialog, PageHeader, FormField, masked-inputs (CPF, telefone, dinheiro)
@@ -213,6 +218,10 @@ lib/autosave.ts           controlador do autosave (sem React); hook em lib/hooks
 lib/nichos.ts             rótulos dos ramos
 app/p/[token]/            página pública do cliente + not-found ("Link inválido")
 components/publico/       CabecalhoPublico, RespostaCliente (barra fixa + folha de aceite/recusa/ajuste), RegistrarAbertura
+lib/comprovante/          dados.ts (o que o PDF mostra), servico.ts (gerar/guardar/assinar/e-mail; processarAceite)
+lib/pdf/                  comprovante.tsx (PDF), texto.ts (caracteres da fonte), fonts/ (OFL)
+lib/verificar/            schemas.ts (código), actions.ts (verificação pública)
+components/verificar/     formulário de /verificar
 lib/publico/              queries.ts (proposta pelo token), actions.ts (abrir, código, responder), otp.ts, consentimento.ts,
                           schemas.ts, limites.ts (limite de taxa)
 lib/email/                interface + resend.ts + smtp.ts + templates.ts

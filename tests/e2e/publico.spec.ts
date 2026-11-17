@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   criarConta,
+  emailsPara,
   entrar,
   novoEmail,
   semRolagemHorizontal,
@@ -133,9 +135,7 @@ test.describe("o cliente responde pelo link", () => {
     await expect(folha.getByRole("heading", { name: "Aceite registrado" })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(
-      folha.getByText("Guarde o código do comprovante: ele identifica este aceite."),
-    ).toBeVisible();
+    await expect(folha.getByText(/Guarde o comprovante: enviamos uma cópia em PDF/)).toBeVisible();
 
     // Banco: aceite com o hash do documento, CPF só dígitos, consentimento gravado; trilha completa
     const { data: aceite } = await service
@@ -155,13 +155,51 @@ test.describe("o cliente responde pelo link", () => {
     expect(aceite!.user_agent).toBeTruthy();
     await expect(folha.getByText(aceite!.codigo_comprovante).first()).toBeVisible();
     expect(await statusDe(s.id)).toBe("aceita");
-    expect(await tiposDeEvento(s.id)).toEqual([
+    expect((await tiposDeEvento(s.id)).slice(0, 5)).toEqual([
       "aberta",
       "otp_enviado",
       "otp_falhou",
       "otp_verificado",
       "aceita",
     ]);
+
+    // Comprovante: baixado na hora pela tela de sucesso (gera se ainda não estiver pronto)
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      folha.getByRole("link", { name: "Baixar comprovante" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe(`comprovante-${aceite!.codigo_comprovante}.pdf`);
+    const pdf = readFileSync((await download.path())!);
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+
+    // ...e por e-mail aos dois, com o PDF anexo (em segundo plano, depois da resposta)
+    const anexo = {
+      nome: `comprovante-${aceite!.codigo_comprovante}.pdf`,
+      tipo: "application/pdf",
+    };
+    await expect
+      .poll(
+        async () => (await emailsPara(clienteEmail)).find((e) => /Comprovante/.test(e.subject)),
+        {
+          timeout: 30_000,
+        },
+      )
+      .toMatchObject({
+        subject: "Comprovante do seu aceite: Troca de tela iPhone 12",
+        anexos: [anexo],
+      });
+    await expect
+      .poll(async () => (await emailsPara(conta.email))[0], { timeout: 30_000 })
+      .toMatchObject({ subject: "Proposta aceita: Troca de tela iPhone 12", anexos: [anexo] });
+    await expect
+      .poll(async () => (await tiposDeEvento(s.id)).slice(5).sort(), { timeout: 30_000 })
+      .toEqual(["email_enviado", "pdf_gerado"]);
+
+    // O arquivo guardado é um só: o do e-mail, o do download e o do bucket são o mesmo
+    const { data: guardado } = await service.storage
+      .from("comprovantes")
+      .download(aceite!.pdf_path!);
+    expect(Buffer.from(await guardado!.arrayBuffer()).equals(pdf)).toBe(true);
 
     // Fechou: a página agora mostra a proposta aceita, sem botões de resposta
     await folha.getByRole("button", { name: "Voltar para a proposta" }).click();

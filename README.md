@@ -43,8 +43,8 @@ O desenvolvimento segue fases revisadas uma a uma ([plano completo](docs/PLANO.m
 | 4 | Propostas: listagem, assistente de criação, rascunho, versões | ✅ Concluída |
 | 5 | Envio: hash da versão, token do link, WhatsApp | ✅ Concluída |
 | 6 | Página pública do cliente com aceite por código (OTP) | ✅ Concluída |
-| 7 | PDF comprovante, e-mail e verificação de integridade | ⏳ Próxima |
-| 8 | Aditivo e aceite de entrega (com fotos) | Planejada |
+| 7 | PDF comprovante, e-mail e verificação de integridade | ✅ Concluída |
+| 8 | Aditivo e aceite de entrega (com fotos) | ⏳ Próxima |
 | 9 | Painel do administrador | Planejada |
 | 10 | Qualidade, CI, deploy na Vercel | Planejada |
 

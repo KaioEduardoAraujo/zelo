@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
   // O Next, em desenvolvimento, imprime no terminal os ARGUMENTOS de cada Server Action. Nos
   // formulários isso inclui e-mails e nomes (dados pessoais): regra 9 do projeto, nunca logar.
   logging: { serverFunctions: false },
+  // As fontes do comprovante em PDF são lidas do disco em tempo de execução (lib/pdf). O Next
+  // não tem como descobrir isso sozinho; sem esta linha, elas faltariam no servidor da Vercel.
+  // /p/** = aceite (gera o PDF logo depois) e download do cliente; /propostas/** = do prestador.
+  outputFileTracingIncludes: {
+    "/p/**": ["./lib/pdf/fonts/**"],
+    "/propostas/**": ["./lib/pdf/fonts/**"],
+  },
 
   // Cabeçalhos de segurança.
   async headers() {

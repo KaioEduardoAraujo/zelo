@@ -148,7 +148,7 @@ Mais simples e sempre correto.
 - IP pelo cabeçalho `x-forwarded-for` (definido pela Vercel); user agent resumido.
 - Estados: link inválido, expirado, já respondida, cancelada.
 
-## Fase 7 — Comprovante
+## Fase 7 — Comprovante ✅
 
 > Ao implementar (a Fase 6 deixou pronto): `aceites.pdf_path` já é gravado no aceite
 > (`<prestador_id>/<aceite_id>.pdf`); gerar o PDF logo depois do `status = ok` em

@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -50,7 +51,7 @@ export default async function PaginaDoCliente(props: PageProps<"/p/[token]">) {
         )}
       >
         <h1 className="sr-only">Proposta de {prestador}</h1>
-        <Situacao proposta={proposta} prestador={prestador} />
+        <Situacao proposta={proposta} prestador={prestador} token={token} />
 
         {proposta.conteudo && (
           <>
@@ -120,7 +121,15 @@ function consentimentoBase(p: PropostaPublica, prestador: string) {
 }
 
 /** Faixa no topo com a situação da proposta, quando ela não está mais aberta para resposta. */
-function Situacao({ proposta, prestador }: { proposta: PropostaPublica; prestador: string }) {
+function Situacao({
+  proposta,
+  prestador,
+  token,
+}: {
+  proposta: PropostaPublica;
+  prestador: string;
+  token: string;
+}) {
   const r = proposta.resposta;
 
   switch (proposta.estado) {
@@ -135,8 +144,17 @@ function Situacao({ proposta, prestador }: { proposta: PropostaPublica; prestado
           />
           <p className="text-support text-slate-600">
             Aceita por {r.clienteNome}
-            {r.cpf ? ` (CPF ${maskCpf(r.cpf)})` : ""}. Guarde o código do comprovante.
+            {r.cpf ? ` (CPF ${maskCpf(r.cpf)})` : ""}. Guarde o comprovante.
           </p>
+          {r.resultado === "aceito" && (
+            <Button asChild className="self-start">
+              {/* Link comum: rota de download (o token é conferido de novo no servidor). */}
+              <a href={`/p/${token}/comprovante`}>
+                <Download aria-hidden="true" />
+                Baixar comprovante
+              </a>
+            </Button>
+          )}
         </section>
       ) : null;
     case "recusada":

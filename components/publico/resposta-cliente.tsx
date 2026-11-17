@@ -1,5 +1,6 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
@@ -245,7 +246,8 @@ export function RespostaCliente(props: Props) {
                       className="self-start"
                     />
                     <p className="text-body text-navy-900">
-                      Guarde o código do comprovante: ele identifica este aceite.
+                      Aceite registrado. Guarde o comprovante: enviamos uma cópia em PDF para{" "}
+                      {props.emailMascarado}.
                     </p>
                   </>
                 ) : (
@@ -269,7 +271,22 @@ export function RespostaCliente(props: Props) {
                 </div>
               </SheetBody>
               <SheetFooter>
-                <Button onClick={() => mudarAberto(false)}>Voltar para a proposta</Button>
+                {sucesso.resultado === "aceito" ? (
+                  <>
+                    {/* Link comum (não <Link>): é uma rota de download, não uma página. */}
+                    <Button asChild>
+                      <a href={`/p/${props.token}/comprovante`}>
+                        <Download aria-hidden="true" />
+                        Baixar comprovante
+                      </a>
+                    </Button>
+                    <Button variant="secondary" onClick={() => mudarAberto(false)}>
+                      Voltar para a proposta
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={() => mudarAberto(false)}>Voltar para a proposta</Button>
+                )}
               </SheetFooter>
             </>
           ) : (

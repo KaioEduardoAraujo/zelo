@@ -1,3 +1,4 @@
+import { formatDateTime } from "@/lib/format";
 import type { AcaoCliente } from "@/lib/publico/otp";
 
 /*
@@ -55,4 +56,65 @@ export function emailCodigo(p: {
 </html>`;
 
   return { assunto: `${p.codigo} é o seu código no Zelo`, html, texto };
+}
+
+/**
+ * Comprovante do aceite, com o PDF anexo. Vai para o cliente e para o prestador, com textos
+ * diferentes. Nada de dados pessoais além do nome que já está no documento.
+ */
+export function emailComprovante(p: {
+  para: "cliente" | "prestador";
+  titulo: string;
+  prestador: string;
+  clienteNome: string;
+  codigo: string;
+  registradoEm: string;
+  urlVerificacao: string;
+  urlPainel: string;
+}): EmailMontado {
+  const quando = formatDateTime(p.registradoEm);
+  const abertura =
+    p.para === "cliente"
+      ? `Você aceitou a proposta “${p.titulo}”, de ${p.prestador}, em ${quando}.`
+      : `${p.clienteNome} aceitou a proposta “${p.titulo}” em ${quando}.`;
+  const verificar = `${p.urlVerificacao}?codigo=${encodeURIComponent(p.codigo)}`;
+
+  const texto = [
+    abertura,
+    "",
+    `Código do comprovante: ${p.codigo}`,
+    "O comprovante em PDF, com a trilha de auditoria e o hash do documento, está anexo.",
+    "",
+    `Para conferir a autenticidade: ${verificar}`,
+    ...(p.para === "prestador" ? ["", `Ver a proposta no Zelo: ${p.urlPainel}`] : []),
+  ].join("\n");
+
+  const botaoPainel =
+    p.para === "prestador"
+      ? `<p style="margin:16px 0 0"><a href="${escapeHtml(p.urlPainel)}" style="display:inline-block;background:#1F7A70;color:#FFFFFF;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px">Ver a proposta no Zelo</a></p>`
+      : "";
+
+  const html = `<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0;padding:24px;background:#F1F5F5;font-family:Arial,Helvetica,sans-serif;color:#12263A">
+    <table role="presentation" width="100%" style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #DCE5E6;border-radius:12px">
+      <tr><td style="padding:28px 24px">
+        <p style="margin:0 0 4px;font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:#1F7A70">Aceite registrado</p>
+        <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#12263A">${escapeHtml(abertura)}</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#52667A">Código do comprovante</p>
+        <p style="margin:0 0 16px;font-family:'Courier New',monospace;font-size:20px;font-weight:700;letter-spacing:2px;color:#12263A">${escapeHtml(p.codigo)}</p>
+        <p style="margin:0 0 8px;font-size:14px;line-height:20px;color:#52667A">O comprovante em PDF, com a trilha de auditoria e o hash do documento, está anexo. Guarde este e-mail.</p>
+        <p style="margin:0;font-size:14px;line-height:20px;color:#52667A">Para conferir a autenticidade, acesse <a href="${escapeHtml(verificar)}" style="color:#1F7A70">${escapeHtml(p.urlVerificacao)}</a>.</p>
+        ${botaoPainel}
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  const assunto =
+    p.para === "cliente"
+      ? `Comprovante do seu aceite: ${p.titulo}`
+      : `Proposta aceita: ${p.titulo}`;
+
+  return { assunto, html, texto };
 }

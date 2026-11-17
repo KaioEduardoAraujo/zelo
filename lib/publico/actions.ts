@@ -1,5 +1,8 @@
 "use server";
 
+import { after } from "next/server";
+
+import { processarAceite } from "@/lib/comprovante/servico";
 import { serverEnv } from "@/lib/env.server";
 import { enviarEmail } from "@/lib/email";
 import { emailCodigo } from "@/lib/email/templates";
@@ -190,7 +193,13 @@ export async function responderProposta(
 
   switch (data.r_status) {
     case "ok":
-      // Fase 7: gerar o PDF em aceites.pdf_path e enviar o comprovante aos dois por e-mail.
+      // O aceite já está gravado e vale. O PDF e os e-mails ficam para DEPOIS da resposta
+      // (after): o cliente não espera a geração, e uma falha aqui não desfaz o aceite. Se o PDF
+      // não ficar pronto a tempo, o download o gera na hora (garantirComprovante).
+      if (acao === "aceito" && data.r_aceite_id) {
+        const aceiteId = data.r_aceite_id;
+        after(() => processarAceite(aceiteId));
+      }
       return {
         ok: true,
         resultado: acao,

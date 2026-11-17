@@ -173,6 +173,8 @@ export type PropostaDetalhe = {
   atualizadoEm: string;
   versoes: VersaoDetalhe[];
   eventos: AuditEvent[];
+  /** Aceite registrado (só quando o cliente aceitou). Dá acesso ao comprovante. */
+  aceite: { codigo: string; criadoEm: string; clienteNome: string; cpf: string | null } | null;
 };
 
 /** Proposta + versões + trilha de auditoria. Id inválido ou de outro prestador → 404. */
@@ -180,7 +182,7 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
   if (!idSchema.safeParse(id).success) notFound();
   const supabase = await createClient();
 
-  const [proposta, versoes, eventos] = await Promise.all([
+  const [proposta, versoes, eventos, aceite] = await Promise.all([
     supabase.from("propostas_situacao").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("proposta_versoes")
@@ -192,6 +194,16 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
       .select("id, tipo, ip, user_agent, criado_em")
       .eq("proposta_id", id)
       .order("criado_em", { ascending: true }),
+    supabase
+      .from("aceites")
+      .select(
+        "codigo_comprovante, criado_em, cliente_nome, cliente_cpf, proposta_versoes!inner(proposta_id)",
+      )
+      .eq("proposta_versoes.proposta_id", id)
+      .eq("resultado", "aceito")
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const p = proposta.data;
@@ -225,6 +237,14 @@ export async function carregarProposta(id: string): Promise<PropostaDetalhe> {
       ip: e.ip === null ? null : String(e.ip),
       userAgent: e.user_agent,
     })),
+    aceite: aceite.data
+      ? {
+          codigo: aceite.data.codigo_comprovante,
+          criadoEm: aceite.data.criado_em,
+          clienteNome: aceite.data.cliente_nome,
+          cpf: aceite.data.cliente_cpf,
+        }
+      : null,
   };
 }
 

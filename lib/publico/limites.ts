@@ -5,12 +5,12 @@ import { serverEnv } from "@/lib/env.server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 /**
- * Limite de taxa por IP para as ações da página pública (D17), no Postgres.
+ * Limite de taxa por IP para as ações públicas (D17), no Postgres.
  * A chave guarda o HMAC do IP, nunca o IP (LGPD). Sem IP conhecido (fora da Vercel), vale só o
  * limite por proposta que o próprio banco aplica aos códigos (3 por hora).
  */
 export async function dentroDoLimite(
-  acao: "abrir" | "codigo" | "responder",
+  acao: "abrir" | "codigo" | "responder" | "comprovante" | "verificar",
   ip: string | undefined,
   limite: number,
   janelaSegundos: number,

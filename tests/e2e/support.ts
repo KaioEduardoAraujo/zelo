@@ -82,6 +82,25 @@ export async function ultimoEmailPara(email: string): Promise<{ subject: string;
   return { subject: msg.Subject, html: msg.HTML };
 }
 
+export type EmailResumo = { subject: string; anexos: { nome: string; tipo: string }[] };
+
+/** Todos os e-mails recebidos por um endereço no Mailpit (mais novo primeiro), com os anexos. */
+export async function emailsPara(email: string): Promise<EmailResumo[]> {
+  const r = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`);
+  const json = (await r.json()) as { messages: { ID: string; Subject: string }[] };
+  return Promise.all(
+    json.messages.map(async (m) => {
+      const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${m.ID}`)).json()) as {
+        Attachments?: { FileName: string; ContentType: string }[];
+      };
+      return {
+        subject: m.Subject,
+        anexos: (msg.Attachments ?? []).map((a) => ({ nome: a.FileName, tipo: a.ContentType })),
+      };
+    }),
+  );
+}
+
 /** Sair da conta: no desktop pela barra lateral; no celular pela tela Conta. */
 export async function sair(page: Page) {
   const lateral = page.getByRole("complementary").getByRole("button", { name: "Sair" });
@@ -204,8 +223,12 @@ export async function semearProposta(
   if (e4) throw e4;
 
   if (status === "aceita" || status === "ajuste_solicitado") {
+    const aceiteId = randomUUID();
     const { error: e5 } = await service.from("aceites").insert({
+      id: aceiteId,
       versao_id: v.id,
+      // Como o banco faz no aceite de verdade (D21): o caminho do PDF nasce com o aceite.
+      pdf_path: status === "aceita" ? `${prestadorId}/${aceiteId}.pdf` : null,
       resultado: status === "aceita" ? "aceito" : "ajuste",
       comentario: status === "ajuste_solicitado" ? "Pode incluir a película?" : null,
       cliente_nome: opts.cliente ?? "Rafael Lima",
