@@ -1,0 +1,12 @@
+# Nada local vai para a Vercel: segredos (as variáveis de produção ficam no painel),
+# artefatos de teste e build. O .env.local apontaria o deploy para o Supabase LOCAL.
+.env*
+!.env.example
+node_modules
+.next
+test-results
+playwright-report
+coverage
+supabase/.temp
+supabase/.branches
+brand-original
